@@ -1,44 +1,73 @@
-import { rmSync } from 'node:fs'
-import path from 'node:path'
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import electron from 'vite-plugin-electron/simple'
-import pkg from './package.json'
+import { rmSync, copyFileSync, existsSync } from "node:fs";
+import path from "node:path";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import electron from "vite-plugin-electron/simple";
+import pkg from "./package.json";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
-  rmSync('dist-electron', { recursive: true, force: true })
+  rmSync("dist-electron", { recursive: true, force: true });
 
-  const isServe = command === 'serve'
-  const isBuild = command === 'build'
-  const sourcemap = isServe || !!process.env.VSCODE_DEBUG
+  const isServe = command === "serve";
+  const isBuild = command === "build";
+  const sourcemap = isServe || !!process.env.VSCODE_DEBUG;
+
+  // 复制批处理脚本文件的函数
+  const copyBatchFiles = () => {
+    const batchFiles = [
+      "final_extract_enhanced.bat",
+      "final_extract_fixed.bat",
+      "final_extract.bat",
+    ];
+
+    batchFiles.forEach((file) => {
+      const sourcePath = path.join(__dirname, "electron", file);
+      const targetPath = path.join(__dirname, "dist-electron/main", file);
+
+      if (existsSync(sourcePath)) {
+        copyFileSync(sourcePath, targetPath);
+        console.log(`Copied ${file} to dist-electron/main/`);
+      }
+    });
+  };
 
   return {
     resolve: {
       alias: {
-        '@': path.join(__dirname, 'src')
+        "@": path.join(__dirname, "src"),
       },
     },
     plugins: [
       react(),
+      {
+        name: "copy-batch-files",
+        closeBundle() {
+          copyBatchFiles();
+        },
+      },
       electron({
         main: {
           // Shortcut of `build.lib.entry`
-          entry: 'electron/main/index.ts',
+          entry: "electron/main/index.ts",
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {
-              console.log(/* For `.vscode/.debug.script.mjs` */'[startup] Electron App')
+              console.log(
+                /* For `.vscode/.debug.script.mjs` */ "[startup] Electron App",
+              );
             } else {
-              args.startup()
+              args.startup();
             }
           },
           vite: {
             build: {
               sourcemap,
               minify: isBuild,
-              outDir: 'dist-electron/main',
+              outDir: "dist-electron/main",
               rollupOptions: {
-                external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
+                external: Object.keys(
+                  "dependencies" in pkg ? pkg.dependencies : {},
+                ),
               },
             },
           },
@@ -46,14 +75,16 @@ export default defineConfig(({ command }) => {
         preload: {
           // Shortcut of `build.rollupOptions.input`.
           // Preload scripts may contain Web assets, so use the `build.rollupOptions.input` instead `build.lib.entry`.
-          input: 'electron/preload/index.ts',
+          input: "electron/preload/index.ts",
           vite: {
             build: {
-              sourcemap: sourcemap ? 'inline' : undefined, // #332
+              sourcemap: sourcemap ? "inline" : undefined, // #332
               minify: isBuild,
-              outDir: 'dist-electron/preload',
+              outDir: "dist-electron/preload",
               rollupOptions: {
-                external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
+                external: Object.keys(
+                  "dependencies" in pkg ? pkg.dependencies : {},
+                ),
               },
             },
           },
@@ -64,13 +95,15 @@ export default defineConfig(({ command }) => {
         renderer: {},
       }),
     ],
-    server: process.env.VSCODE_DEBUG && (() => {
-      const url = new URL(pkg.debug.env.VITE_DEV_SERVER_URL)
-      return {
-        host: url.hostname,
-        port: +url.port,
-      }
-    })(),
+    server:
+      process.env.VSCODE_DEBUG &&
+      (() => {
+        const url = new URL(pkg.debug.env.VITE_DEV_SERVER_URL);
+        return {
+          host: url.hostname,
+          port: +url.port,
+        };
+      })(),
     clearScreen: false,
-  }
-})
+  };
+});

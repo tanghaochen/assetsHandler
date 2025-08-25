@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
 contextBridge.exposeInMainWorld("electronAPI", {
   // 选择目录
   selectDirectory: () => ipcRenderer.invoke("select-directory"),
+  selectFolder: () => ipcRenderer.invoke("select-folder"),
+  selectFile: () => ipcRenderer.invoke("select-file"),
 
   // 保存文件
   saveFile: (data: { data: ArrayBuffer; fileName: string; filePath: string }) =>
@@ -37,6 +39,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // 处理文件拖拽
   handleFileDrop: (filePaths: string[]) =>
     ipcRenderer.invoke("handle-file-drop", filePaths),
+
+  // 批处理相关
+  executeBatchScript: (config: any) =>
+    ipcRenderer.invoke("execute-batch-script", config),
+  getSystemInfo: () => ipcRenderer.invoke("get-system-info"),
+
+  // 批处理进度监听
+  onBatchProgress: (callback: (data: any) => void) => {
+    ipcRenderer.on('batch-progress', (event, data) => callback(data));
+  },
 
   // 检查是否在 Electron 环境
   isElectron: true,

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
+import { spawn } from "node:child_process";
 import { update } from "./update";
 
 const require = createRequire(import.meta.url);
@@ -38,10 +39,10 @@ if (process.platform === "win32") app.setAppUserModelId(app.getName());
 // 生产环境安全设置
 if (!VITE_DEV_SERVER_URL) {
   // 禁用远程内容
-  app.on('web-contents-created', (event, contents) => {
-    contents.on('will-navigate', (event, navigationUrl) => {
+  app.on("web-contents-created", (event, contents) => {
+    contents.on("will-navigate", (event, navigationUrl) => {
       const parsedUrl = new URL(navigationUrl);
-      if (parsedUrl.origin !== 'file://') {
+      if (parsedUrl.origin !== "file://") {
         event.preventDefault();
       }
     });
@@ -87,27 +88,27 @@ async function createWindow() {
 
   // 禁用开发者工具（生产环境）
   if (!VITE_DEV_SERVER_URL) {
-    win.webContents.on('devtools-opened', () => {
+    win.webContents.on("devtools-opened", () => {
       win?.webContents.closeDevTools();
     });
-    
+
     // 禁用右键菜单
-    win.webContents.on('context-menu', (e) => {
+    win.webContents.on("context-menu", (e) => {
       e.preventDefault();
     });
-    
+
     // 禁用键盘快捷键
-    win.webContents.on('before-input-event', (event, input) => {
+    win.webContents.on("before-input-event", (event, input) => {
       // 禁用 F12 键
-      if (input.key === 'F12') {
+      if (input.key === "F12") {
         event.preventDefault();
       }
       // 禁用 Ctrl+Shift+I
-      if (input.control && input.shift && input.key === 'I') {
+      if (input.control && input.shift && input.key === "I") {
         event.preventDefault();
       }
       // 禁用 Ctrl+Shift+C
-      if (input.control && input.shift && input.key === 'C') {
+      if (input.control && input.shift && input.key === "C") {
         event.preventDefault();
       }
     });
@@ -267,3 +268,137 @@ ipcMain.handle(
     }
   },
 );
+
+// 批处理相关IPC处理器
+ipcMain.handle("select-folder", async () => {
+  const result = await dialog.showOpenDialog(win!, {
+    properties: ["openDirectory"],
+    title: "选择文件夹",
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle("select-file", async () => {
+  const result = await dialog.showOpenDialog(win!, {
+    properties: ["openFile"],
+    title: "选择文件",
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle("execute-batch-script", async (event, config) => {
+  try {
+    console.log("执行批处理脚本:", config);
+
+    // 检查输入路径是否存在
+    if (!config.inputPath || !fs.existsSync(config.inputPath)) {
+      return { success: false, message: "输入路径不存在或无效" };
+    }
+
+    // 获取批处理脚本路径
+    const scriptPath = path.join(__dirname, "final_extract_enhanced.bat");
+
+    // 检查批处理脚本是否存在
+    if (!fs.existsSync(scriptPath)) {
+      return { success: false, message: "批处理脚本文件不存在" };
+    }
+
+    // 创建临时配置文件
+    const tempConfigPath = path.join(
+      os.tmpdir(),
+      `batch_config_${Date.now()}.bat`,
+    );
+    const configContent = `@echo off
+set "PASSWORD=${config.password}"
+set "SUFFIX=${config.suffix}"
+set "COPY_FILE_PATH=${config.copyFilePath}"
+set "COPY_FILE_ENABLED=${config.copyFileEnabled ? "true" : "false"}"
+set "DELETE_ORIGINAL=${config.deleteOriginal ? "true" : "false"}"
+set "EXTRACT_NESTED=${config.extractNested ? "true" : "false"}"
+set "INPUT_PATH=${config.inputPath}"
+set "OUTPUT_PATH=${config.outputPath || config.inputPath}"
+
+cd /d "${config.inputPath}"
+call "${scriptPath}"
+`;
+
+    // 写入临时配置文件
+    fs.writeFileSync(tempConfigPath, configContent, "utf8");
+
+    // 执行批处理脚本
+    return new Promise((resolve) => {
+      const child = spawn("cmd", ["/c", tempConfigPath], {
+        cwd: config.inputPath,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let output = "";
+      let errorOutput = "";
+
+      child.stdout.on("data", (data) => {
+        const message = data.toString();
+        output += message;
+        console.log("批处理输出:", message);
+        // 发送进度更新到渲染进程
+        event.sender.send("batch-progress", { type: "output", message });
+      });
+
+      child.stderr.on("data", (data) => {
+        const message = data.toString();
+        errorOutput += message;
+        console.error("批处理错误:", message);
+        event.sender.send("batch-progress", { type: "error", message });
+      });
+
+      child.on("close", (code) => {
+        // 清理临时文件
+        try {
+          fs.unlinkSync(tempConfigPath);
+        } catch (err) {
+          console.error("清理临时文件失败:", err);
+        }
+
+        if (code === 0) {
+          resolve({ success: true, message: "批处理完成", output });
+        } else {
+          resolve({
+            success: false,
+            message: `批处理执行失败 (退出码: ${code})`,
+            error: errorOutput,
+            output,
+          });
+        }
+      });
+
+      child.on("error", (err) => {
+        // 清理临时文件
+        try {
+          fs.unlinkSync(tempConfigPath);
+        } catch (cleanupErr) {
+          console.error("清理临时文件失败:", cleanupErr);
+        }
+
+        resolve({
+          success: false,
+          message: `批处理执行错误: ${err.message}`,
+        });
+      });
+    });
+  } catch (error) {
+    console.error("批处理执行失败:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "未知错误",
+    };
+  }
+});
+
+ipcMain.handle("get-system-info", async () => {
+  return {
+    platform: process.platform,
+    arch: process.arch,
+    version: process.version,
+    nodeVersion: process.versions.node,
+    electronVersion: process.versions.electron,
+  };
+});
