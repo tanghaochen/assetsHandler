@@ -29,6 +29,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
   ) => {
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
     const [showMoveable, setShowMoveable] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
 
     useEffect(() => {
       if (image) {
@@ -134,6 +135,14 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       });
     };
 
+    const handleMouseEnter = () => {
+      setIsHovered(true);
+    };
+
+    const handleMouseLeave = () => {
+      setIsHovered(false);
+    };
+
     const getWatermarkStyle = () => {
       if (!imageSize.width || !imageSize.height) return {};
 
@@ -165,8 +174,6 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
         textOverflow: "ellipsis" as const,
         pointerEvents: "auto" as const,
         zIndex: 1000,
-        backgroundColor: "rgba(255,255,255,0.1)",
-        border: "1px solid rgba(0,0,0,0.1)",
       };
     };
 
@@ -207,6 +214,8 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
         <div className="preview-container">
           <div
             className="image-container"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             style={{
               position: "relative",
               width: `${imageSize.width}px`,
@@ -227,7 +236,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             >
               {watermarkText}
             </div>
-            {showMoveable && watermarkRef.current && (
+            {showMoveable && watermarkRef.current && isHovered && (
               <Moveable
                 target={watermarkRef.current}
                 draggable={true}
