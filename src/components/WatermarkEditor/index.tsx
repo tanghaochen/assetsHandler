@@ -12,6 +12,10 @@ const WatermarkEditor: React.FC = () => {
   const [watermarkColor, setWatermarkColor] = useState<string>("#ffffff");
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.7);
   const [watermarkFontSize, setWatermarkFontSize] = useState<number>(24);
+  const [watermarkType, setWatermarkType] = useState<"text" | "image" | "both">(
+    "text",
+  );
+  const [watermarkImageUrl, setWatermarkImageUrl] = useState<string>("");
   const [watermarkPosition, setWatermarkPosition] = useState<WatermarkPosition>(
     {
       x: 0.5,
@@ -78,6 +82,13 @@ const WatermarkEditor: React.FC = () => {
     },
     [selectedImageIndex],
   );
+
+  // 处理水印图片上传
+  const handleWatermarkImageChange = useCallback((file: File) => {
+    const url = URL.createObjectURL(file);
+    setWatermarkImageUrl(url);
+    console.log("水印图片已上传:", file.name);
+  }, []);
 
   // 应用到所有图片 - 将当前水印位置以百分比形式应用到所有图片
   const applyToAllImages = useCallback(() => {
@@ -249,6 +260,8 @@ const WatermarkEditor: React.FC = () => {
             watermarkColor={watermarkColor}
             watermarkOpacity={watermarkOpacity}
             watermarkFontSize={watermarkFontSize}
+            watermarkType={watermarkType}
+            watermarkImageUrl={watermarkImageUrl}
             watermarkPosition={watermarkPosition}
             onWatermarkUpdate={handleWatermarkUpdate}
             watermarkRef={watermarkRef}
@@ -262,10 +275,14 @@ const WatermarkEditor: React.FC = () => {
             watermarkColor={watermarkColor}
             watermarkOpacity={watermarkOpacity}
             watermarkFontSize={watermarkFontSize}
+            watermarkType={watermarkType}
+            watermarkImageUrl={watermarkImageUrl}
             onWatermarkTextChange={setWatermarkText}
             onWatermarkColorChange={setWatermarkColor}
             onWatermarkOpacityChange={setWatermarkOpacity}
             onWatermarkFontSizeChange={setWatermarkFontSize}
+            onWatermarkTypeChange={setWatermarkType}
+            onWatermarkImageChange={handleWatermarkImageChange}
             onApplyToAll={applyToAllImages}
             onExportAll={exportAllImages}
             imageCount={images.length}

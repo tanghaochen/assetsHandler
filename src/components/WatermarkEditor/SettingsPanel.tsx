@@ -5,10 +5,14 @@ interface SettingsPanelProps {
   watermarkColor: string;
   watermarkOpacity: number;
   watermarkFontSize: number;
+  watermarkType: "text" | "image" | "both";
+  watermarkImageUrl?: string;
   onWatermarkTextChange: (text: string) => void;
   onWatermarkColorChange: (color: string) => void;
   onWatermarkOpacityChange: (opacity: number) => void;
   onWatermarkFontSizeChange: (size: number) => void;
+  onWatermarkTypeChange: (type: "text" | "image" | "both") => void;
+  onWatermarkImageChange: (file: File) => void;
   onApplyToAll: () => void;
   onExportAll: () => void;
   imageCount: number;
@@ -19,10 +23,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   watermarkColor,
   watermarkOpacity,
   watermarkFontSize,
+  watermarkType,
+  watermarkImageUrl,
   onWatermarkTextChange,
   onWatermarkColorChange,
   onWatermarkOpacityChange,
   onWatermarkFontSizeChange,
+  onWatermarkTypeChange,
+  onWatermarkImageChange,
   onApplyToAll,
   onExportAll,
   imageCount,
@@ -47,17 +55,112 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       </div>
 
       <div className="settings-content">
-        {/* 水印文本设置 */}
+        {/* 水印类型选择 */}
         <div className="setting-group">
-          <label className="setting-label">水印文本</label>
-          <input
-            type="text"
-            value={watermarkText}
-            onChange={(e) => onWatermarkTextChange(e.target.value)}
-            className="setting-input"
-            placeholder="输入水印文本"
-          />
+          <label className="setting-label">水印类型</label>
+          <div className="watermark-type-selector">
+            <button
+              className={`type-btn ${watermarkType === "text" ? "active" : ""}`}
+              onClick={() => onWatermarkTypeChange("text")}
+            >
+              文字水印
+            </button>
+            <button
+              className={`type-btn ${
+                watermarkType === "image" ? "active" : ""
+              }`}
+              onClick={() => onWatermarkTypeChange("image")}
+            >
+              图片水印
+            </button>
+            <button
+              className={`type-btn ${watermarkType === "both" ? "active" : ""}`}
+              onClick={() => onWatermarkTypeChange("both")}
+            >
+              文字+图片
+            </button>
+          </div>
         </div>
+
+        {/* 水印文本设置 */}
+        {(watermarkType === "text" || watermarkType === "both") && (
+          <div className="setting-group">
+            <label className="setting-label">水印文本</label>
+            <input
+              type="text"
+              value={watermarkText}
+              onChange={(e) => onWatermarkTextChange(e.target.value)}
+              className="setting-input"
+              placeholder="输入水印文本"
+            />
+          </div>
+        )}
+
+        {/* 图片水印设置 */}
+        {(watermarkType === "image" || watermarkType === "both") && (
+          <div className="setting-group">
+            <label className="setting-label">水印图片</label>
+            <div className="image-upload-area">
+              {watermarkImageUrl ? (
+                <div className="image-preview">
+                  <img
+                    src={watermarkImageUrl}
+                    alt="水印图片"
+                    className="watermark-image-preview"
+                  />
+                  <button
+                    className="change-image-btn"
+                    onClick={() => {
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = "image/*";
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          onWatermarkImageChange(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                  >
+                    更换图片
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="upload-placeholder"
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        onWatermarkImageChange(file);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <svg
+                    className="upload-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                  <span>点击上传水印图片</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 字体大小设置 */}
         <div className="setting-group">
@@ -178,18 +281,70 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div className="setting-group">
           <label className="setting-label">预览效果</label>
           <div className="watermark-preview">
-            <div
-              className="preview-text"
-              style={{
-                color: watermarkColor,
-                opacity: watermarkOpacity,
-                fontSize: `${watermarkFontSize}px`,
-                textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
-                fontWeight: "bold",
-              }}
-            >
-              {watermarkText || "预览文本"}
-            </div>
+            {watermarkType === "text" && (
+              <div
+                className="preview-text"
+                style={{
+                  color: watermarkColor,
+                  opacity: watermarkOpacity,
+                  fontSize: `${watermarkFontSize}px`,
+                  textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+                  fontWeight: "bold",
+                }}
+              >
+                {watermarkText || "预览文本"}
+              </div>
+            )}
+            {watermarkType === "image" && watermarkImageUrl && (
+              <div className="preview-image">
+                <img
+                  src={watermarkImageUrl}
+                  alt="水印图片预览"
+                  style={{
+                    opacity: watermarkOpacity,
+                    maxWidth: "100%",
+                    maxHeight: "60px",
+                    objectFit: "contain",
+                  }}
+                />
+              </div>
+            )}
+            {watermarkType === "both" && (
+              <div className="preview-both">
+                {watermarkImageUrl && (
+                  <div className="preview-image">
+                    <img
+                      src={watermarkImageUrl}
+                      alt="水印图片预览"
+                      style={{
+                        opacity: watermarkOpacity,
+                        maxWidth: "80px",
+                        maxHeight: "40px",
+                        objectFit: "contain",
+                        marginBottom: "8px",
+                      }}
+                    />
+                  </div>
+                )}
+                <div
+                  className="preview-text"
+                  style={{
+                    color: watermarkColor,
+                    opacity: watermarkOpacity,
+                    fontSize: `${watermarkFontSize}px`,
+                    textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {watermarkText || "预览文本"}
+                </div>
+              </div>
+            )}
+            {watermarkType === "image" && !watermarkImageUrl && (
+              <div className="preview-placeholder">
+                <span>请先上传水印图片</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

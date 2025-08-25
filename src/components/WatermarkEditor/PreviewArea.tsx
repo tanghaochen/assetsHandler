@@ -8,6 +8,8 @@ interface PreviewAreaProps {
   watermarkColor: string;
   watermarkOpacity: number;
   watermarkFontSize: number;
+  watermarkType: "text" | "image" | "both";
+  watermarkImageUrl?: string;
   watermarkPosition: WatermarkPosition;
   onWatermarkUpdate: (position: WatermarkPosition) => void;
   watermarkRef: React.RefObject<HTMLDivElement>;
@@ -21,6 +23,8 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       watermarkColor,
       watermarkOpacity,
       watermarkFontSize,
+      watermarkType,
+      watermarkImageUrl,
       watermarkPosition,
       onWatermarkUpdate,
       watermarkRef,
@@ -243,7 +247,54 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
               className="watermark-element"
               style={getWatermarkStyle()}
             >
-              {watermarkText}
+              {watermarkType === "text" && watermarkText}
+              {watermarkType === "image" && watermarkImageUrl && (
+                <img
+                  src={watermarkImageUrl}
+                  alt="水印图片"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    opacity: watermarkOpacity,
+                  }}
+                />
+              )}
+              {watermarkType === "both" && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "100%",
+                  }}
+                >
+                  {watermarkImageUrl && (
+                    <img
+                      src={watermarkImageUrl}
+                      alt="水印图片"
+                      style={{
+                        width: "80%",
+                        height: "40%",
+                        objectFit: "contain",
+                        opacity: watermarkOpacity,
+                        marginBottom: "4px",
+                      }}
+                    />
+                  )}
+                  <div
+                    style={{
+                      color: watermarkColor,
+                      fontSize: `${watermarkFontSize}px`,
+                      textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {watermarkText}
+                  </div>
+                </div>
+              )}
             </div>
             {showMoveable && watermarkRef.current && isHovered && (
               <Moveable
