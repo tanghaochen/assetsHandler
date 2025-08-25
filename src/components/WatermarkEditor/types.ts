@@ -23,11 +23,29 @@ export interface WatermarkSettings {
 }
 
 export interface WatermarkConfig {
-  type: "text" | "image" | "both";
+  type: "text" | "image";
   text: string;
   color: string;
   opacity: number;
   fontSize: number;
   imageUrl?: string;
   imageFile?: File;
+}
+
+export interface ExportSettings {
+  outputPath: string;
+}
+
+// Electron API 类型定义
+declare global {
+  interface Window {
+    electronAPI?: {
+      selectDirectory: () => Promise<string>;
+      saveFile: (options: {
+        data: ArrayBuffer;
+        fileName: string;
+        filePath: string;
+      }) => Promise<void>;
+    };
+  }
 }

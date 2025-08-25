@@ -8,7 +8,7 @@ interface PreviewAreaProps {
   watermarkColor: string;
   watermarkOpacity: number;
   watermarkFontSize: number;
-  watermarkType: "text" | "image" | "both";
+  watermarkType: "text" | "image";
   watermarkImageUrl?: string;
   watermarkPosition: WatermarkPosition;
   onWatermarkUpdate: (position: WatermarkPosition) => void;
@@ -255,45 +255,10 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
                   style={{
                     width: "100%",
                     height: "100%",
-                    objectFit: "contain",
+                    objectFit: "fill",
                     opacity: watermarkOpacity,
                   }}
                 />
-              )}
-              {watermarkType === "both" && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    height: "100%",
-                  }}
-                >
-                  {watermarkImageUrl && (
-                    <img
-                      src={watermarkImageUrl}
-                      alt="水印图片"
-                      style={{
-                        width: "80%",
-                        height: "40%",
-                        objectFit: "contain",
-                        opacity: watermarkOpacity,
-                        marginBottom: "4px",
-                      }}
-                    />
-                  )}
-                  <div
-                    style={{
-                      color: watermarkColor,
-                      fontSize: `${watermarkFontSize}px`,
-                      textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {watermarkText}
-                  </div>
-                </div>
               )}
             </div>
             {showMoveable && watermarkRef.current && isHovered && (

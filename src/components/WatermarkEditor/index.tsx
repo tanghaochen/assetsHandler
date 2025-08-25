@@ -10,12 +10,13 @@ const WatermarkEditor: React.FC = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
   const [watermarkText, setWatermarkText] = useState<string>("Watermark");
   const [watermarkColor, setWatermarkColor] = useState<string>("#ffffff");
-  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.7);
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(1.0);
   const [watermarkFontSize, setWatermarkFontSize] = useState<number>(24);
-  const [watermarkType, setWatermarkType] = useState<"text" | "image" | "both">(
-    "text",
-  );
+  const [watermarkType, setWatermarkType] = useState<"text" | "image">("text");
   const [watermarkImageUrl, setWatermarkImageUrl] = useState<string>("");
+  const [exportSettings, setExportSettings] = useState({
+    outputPath: "",
+  });
   const [watermarkPosition, setWatermarkPosition] = useState<WatermarkPosition>(
     {
       x: 0.5,
@@ -89,6 +90,14 @@ const WatermarkEditor: React.FC = () => {
     setWatermarkImageUrl(url);
     console.log("水印图片已上传:", file.name);
   }, []);
+
+  // 处理导出设置更新
+  const handleExportSettingsChange = useCallback(
+    (settings: { outputPath?: string }) => {
+      setExportSettings((prev) => ({ ...prev, ...settings }));
+    },
+    [],
+  );
 
   // 应用到所有图片 - 将当前水印位置以百分比形式应用到所有图片
   const applyToAllImages = useCallback(() => {
@@ -210,8 +219,38 @@ const WatermarkEditor: React.FC = () => {
     setWatermarkPosition(originalWatermarkPosition);
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    saveAs(zipBlob, "watermarked_images.zip");
-    console.log("导出完成，ZIP文件已下载");
+    // 使用当前时间生成文件名
+    const now = new Date();
+    const timestamp =
+      now.getFullYear().toString() +
+      (now.getMonth() + 1).toString().padStart(2, "0") +
+      now.getDate().toString().padStart(2, "0") +
+      "_" +
+      now.getHours().toString().padStart(2, "0") +
+      now.getMinutes().toString().padStart(2, "0") +
+      now.getSeconds().toString().padStart(2, "0");
+    const fileName = `watermarked_images_${timestamp}.zip`;
+
+    // 如果有设置保存路径，使用Electron API保存到指定位置
+    if (exportSettings.outputPath && window.electronAPI) {
+      try {
+        await window.electronAPI.saveFile({
+          data: await zipBlob.arrayBuffer(),
+          fileName: fileName,
+          filePath: exportSettings.outputPath,
+        });
+        console.log("导出完成，ZIP文件已保存到:", exportSettings.outputPath);
+      } catch (error) {
+        console.error("保存文件失败:", error);
+        // 如果保存失败，回退到浏览器下载
+        saveAs(zipBlob, fileName);
+        console.log("回退到浏览器下载，ZIP文件已下载:", fileName);
+      }
+    } else {
+      // 浏览器环境或未设置路径，使用默认下载
+      saveAs(zipBlob, fileName);
+      console.log("导出完成，ZIP文件已下载:", fileName);
+    }
   }, [images, selectedImageIndex, watermarkPosition]);
 
   // 删除图片
@@ -283,6 +322,8 @@ const WatermarkEditor: React.FC = () => {
             onWatermarkFontSizeChange={setWatermarkFontSize}
             onWatermarkTypeChange={setWatermarkType}
             onWatermarkImageChange={handleWatermarkImageChange}
+            exportSettings={exportSettings}
+            onExportSettingsChange={handleExportSettingsChange}
             onApplyToAll={applyToAllImages}
             onExportAll={exportAllImages}
             imageCount={images.length}
