@@ -128,18 +128,28 @@ const WatermarkEditor: React.FC = () => {
         case "ArrowUp":
           if (images.length === 0) return;
           event.preventDefault();
-          setSelectedImageIndex((prev) => {
-            if (prev <= 0) return images.length - 1;
-            return prev - 1;
-          });
+          const prevIndex =
+            selectedImageIndex <= 0
+              ? images.length - 1
+              : selectedImageIndex - 1;
+          setSelectedImageIndex(prevIndex);
+          // 加载对应图片的水印位置
+          if (images[prevIndex]) {
+            setWatermarkPosition({ ...images[prevIndex].watermarkPosition });
+          }
           break;
         case "ArrowDown":
           if (images.length === 0) return;
           event.preventDefault();
-          setSelectedImageIndex((prev) => {
-            if (prev >= images.length - 1) return 0;
-            return prev + 1;
-          });
+          const nextIndex =
+            selectedImageIndex >= images.length - 1
+              ? 0
+              : selectedImageIndex + 1;
+          setSelectedImageIndex(nextIndex);
+          // 加载对应图片的水印位置
+          if (images[nextIndex]) {
+            setWatermarkPosition({ ...images[nextIndex].watermarkPosition });
+          }
           break;
         case "s":
           if (event.ctrlKey || event.metaKey) {
@@ -163,6 +173,8 @@ const WatermarkEditor: React.FC = () => {
     },
     [
       images.length,
+      selectedImageIndex,
+      images,
       watermarkText,
       watermarkColor,
       watermarkOpacity,
