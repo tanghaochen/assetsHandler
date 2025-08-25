@@ -121,38 +121,87 @@ const WatermarkEditor: React.FC = () => {
       }
     };
 
-    for (let i = 0; i < images.length; i++) {
-      setSelectedImageIndex(i);
+    // 临时保存当前选中的图片索引和水印位置
+    const originalSelectedIndex = selectedImageIndex;
+    const originalWatermarkPosition = { ...watermarkPosition };
 
-      // 等待DOM更新
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    for (let i = 0; i < images.length; i++) {
+      console.log(`导出第 ${i + 1} 张图片:`, images[i].file.name);
+      console.log(`水印位置设置:`, images[i].watermarkPosition);
+
+      // 切换到当前图片并应用其水印位置设置
+      setSelectedImageIndex(i);
+      setWatermarkPosition({ ...images[i].watermarkPosition });
+
+      // 等待DOM更新，确保水印位置正确应用
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       if (previewRef.current) {
-        const { mime, ext, bg } = resolveMimeAndExt(images[i].file.name);
-
-        const canvas = await html2canvas(previewRef.current, {
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: bg, // jpeg 使用白底，其余保持透明
+        // 临时隐藏所有 moveable 控件和预览区域的交互元素
+        const moveableElements = previewRef.current.querySelectorAll(
+          '[class*="moveable"], [class*="Moveable"]',
+        );
+        const originalDisplay: string[] = [];
+        moveableElements.forEach((el) => {
+          originalDisplay.push((el as HTMLElement).style.display);
+          (el as HTMLElement).style.display = "none";
         });
 
-        // 将 canvas 转为指定格式的 Blob 并添加到 zip
-        const blob: Blob | null = await new Promise((resolve) =>
-          canvas.toBlob((b) => resolve(b), mime),
-        );
+        // 隐藏预览区域的交互提示
+        const previewFooter =
+          previewRef.current.querySelector(".preview-footer");
+        if (previewFooter) {
+          (previewFooter as HTMLElement).style.display = "none";
+        }
 
-        if (blob) {
-          // 保留原文件名（加前缀），并确保后缀与导出格式一致
-          const originalName = images[i].file.name.replace(/\.[^.]+$/, "");
-          const outName = `watermarked_${originalName}.${ext}`;
-          zip.file(outName, blob);
+        const { mime, ext, bg } = resolveMimeAndExt(images[i].file.name);
+
+        try {
+          const canvas = await html2canvas(previewRef.current, {
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: bg, // jpeg 使用白底，其余保持透明
+            scale: 1, // 确保1:1比例
+            logging: false, // 关闭日志
+            removeContainer: false, // 不移除容器
+          });
+
+          // 恢复 moveable 控件的显示
+          moveableElements.forEach((el, index) => {
+            (el as HTMLElement).style.display = originalDisplay[index];
+          });
+
+          // 恢复预览区域提示
+          if (previewFooter) {
+            (previewFooter as HTMLElement).style.display = "";
+          }
+
+          // 将 canvas 转为指定格式的 Blob 并添加到 zip
+          const blob: Blob | null = await new Promise((resolve) =>
+            canvas.toBlob((b) => resolve(b), mime),
+          );
+
+          if (blob) {
+            // 保留原文件名（加前缀），并确保后缀与导出格式一致
+            const originalName = images[i].file.name.replace(/\.[^.]+$/, "");
+            const outName = `watermarked_${originalName}.${ext}`;
+            zip.file(outName, blob);
+            console.log(`成功添加文件到ZIP: ${outName}`);
+          }
+        } catch (error) {
+          console.error(`导出图片 ${images[i].file.name} 时出错:`, error);
         }
       }
     }
 
+    // 恢复原始选中的图片索引和水印位置
+    setSelectedImageIndex(originalSelectedIndex);
+    setWatermarkPosition(originalWatermarkPosition);
+
     const zipBlob = await zip.generateAsync({ type: "blob" });
     saveAs(zipBlob, "watermarked_images.zip");
-  }, [images]);
+    console.log("导出完成，ZIP文件已下载");
+  }, [images, selectedImageIndex, watermarkPosition]);
 
   // 删除图片
   const handleDeleteImage = useCallback(
