@@ -723,7 +723,7 @@ const WatermarkEditor: React.FC = () => {
 
           if (blob) {
             const originalName = image.file.name.replace(/\.[^.]+$/, "");
-            const outName = `watermarked_${originalName}.${ext}`;
+            const outName = `${originalName}.${ext}`;
             zip.file(outName, blob);
             console.log(
               `成功添加文件到ZIP: ${outName}, 大小: ${(

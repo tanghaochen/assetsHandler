@@ -110,6 +110,65 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
     ]);
   };
 
+  const testProcessing = async () => {
+    if (!config.inputPath) {
+      setError("请选择输入文件夹");
+      return;
+    }
+
+    setIsProcessing(true);
+    setProgress(0);
+    setLog([]);
+    setError(null);
+    setSuccess(null);
+
+    addLog("开始测试批处理...");
+    addLog(`输入路径: ${config.inputPath}`);
+    addLog(`输出路径: ${config.outputPath || "默认路径"}`);
+    addLog(`密码: ${config.password}`);
+    addLog(`后缀: ${config.suffix}`);
+
+    try {
+      // 设置批处理进度监听
+      window.electronAPI?.onBatchProgress((data) => {
+        if (data.type === "output") {
+          addLog(data.message.trim());
+        } else if (data.type === "error") {
+          addLog(`错误: ${data.message.trim()}`);
+        }
+      });
+
+      // 调用测试脚本
+      const result = await window.electronAPI?.testBatchScript({
+        password: config.password,
+        suffix: config.suffix,
+        copyFilePath: config.copyFilePath,
+        copyFileEnabled: config.copyFileEnabled,
+        inputPath: config.inputPath,
+        outputPath: config.outputPath,
+        deleteOriginal: config.deleteOriginal,
+        extractNested: config.extractNested,
+      });
+
+      if (result.success) {
+        setSuccess("测试完成！");
+        addLog("测试脚本执行成功");
+        setProgress(100);
+      } else {
+        setError(result.message || "测试失败");
+        addLog(`测试失败: ${result.message}`);
+        if (result.error) {
+          addLog(`错误详情: ${result.error}`);
+        }
+      }
+    } catch (err) {
+      setError("测试过程中出现错误");
+      addLog(`错误: ${err}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const startProcessing = async () => {
     if (!config.inputPath) {
       setError("请选择输入文件夹");
@@ -131,9 +190,9 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
     try {
       // 设置批处理进度监听
       window.electronAPI?.onBatchProgress((data) => {
-        if (data.type === 'output') {
+        if (data.type === "output") {
           addLog(data.message.trim());
-        } else if (data.type === 'error') {
+        } else if (data.type === "error") {
           addLog(`错误: ${data.message.trim()}`);
         }
       });
@@ -407,7 +466,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
                   </Alert>
                 )}
 
-                <Box mb={2}>
+                <Box mb={2} display="flex" gap={1}>
                   <Button
                     variant="contained"
                     color="primary"
@@ -415,9 +474,18 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
                     startIcon={<PlayArrowIcon />}
                     onClick={startProcessing}
                     disabled={isProcessing || !config.inputPath}
-                    fullWidth
+                    sx={{ flex: 1 }}
                   >
                     {isProcessing ? "处理中..." : "开始处理"}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    size="large"
+                    onClick={testProcessing}
+                    disabled={isProcessing || !config.inputPath}
+                  >
+                    测试
                   </Button>
                 </Box>
 

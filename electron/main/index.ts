@@ -10,6 +10,9 @@ import { update } from "./update";
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// 导入批处理处理器
+const BatchProcessor = require("./batch-processor.cjs");
+
 // The built directory structure
 //
 // ├─┬ dist-electron
@@ -288,102 +291,33 @@ ipcMain.handle("select-file", async () => {
 
 ipcMain.handle("execute-batch-script", async (event, config) => {
   try {
-    console.log("执行批处理脚本:", config);
+    console.log("执行批处理:", config);
 
     // 检查输入路径是否存在
     if (!config.inputPath || !fs.existsSync(config.inputPath)) {
       return { success: false, message: "输入路径不存在或无效" };
     }
 
-    // 获取批处理脚本路径
-    const scriptPath = path.join(__dirname, "final_extract_enhanced.bat");
-
-    // 检查批处理脚本是否存在
-    if (!fs.existsSync(scriptPath)) {
-      return { success: false, message: "批处理脚本文件不存在" };
-    }
-
-    // 创建临时配置文件
-    const tempConfigPath = path.join(
-      os.tmpdir(),
-      `batch_config_${Date.now()}.bat`,
-    );
-    const configContent = `@echo off
-set "PASSWORD=${config.password}"
-set "SUFFIX=${config.suffix}"
-set "COPY_FILE_PATH=${config.copyFilePath}"
-set "COPY_FILE_ENABLED=${config.copyFileEnabled ? "true" : "false"}"
-set "DELETE_ORIGINAL=${config.deleteOriginal ? "true" : "false"}"
-set "EXTRACT_NESTED=${config.extractNested ? "true" : "false"}"
-set "INPUT_PATH=${config.inputPath}"
-set "OUTPUT_PATH=${config.outputPath || config.inputPath}"
-
-cd /d "${config.inputPath}"
-call "${scriptPath}"
-`;
-
-    // 写入临时配置文件
-    fs.writeFileSync(tempConfigPath, configContent, "utf8");
-
-    // 执行批处理脚本
-    return new Promise((resolve) => {
-      const child = spawn("cmd", ["/c", tempConfigPath], {
-        cwd: config.inputPath,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-
-      let output = "";
-      let errorOutput = "";
-
-      child.stdout.on("data", (data) => {
-        const message = data.toString();
-        output += message;
-        console.log("批处理输出:", message);
-        // 发送进度更新到渲染进程
-        event.sender.send("batch-progress", { type: "output", message });
-      });
-
-      child.stderr.on("data", (data) => {
-        const message = data.toString();
-        errorOutput += message;
-        console.error("批处理错误:", message);
-        event.sender.send("batch-progress", { type: "error", message });
-      });
-
-      child.on("close", (code) => {
-        // 清理临时文件
-        try {
-          fs.unlinkSync(tempConfigPath);
-        } catch (err) {
-          console.error("清理临时文件失败:", err);
-        }
-
-        if (code === 0) {
-          resolve({ success: true, message: "批处理完成", output });
-        } else {
-          resolve({
-            success: false,
-            message: `批处理执行失败 (退出码: ${code})`,
-            error: errorOutput,
-            output,
-          });
-        }
-      });
-
-      child.on("error", (err) => {
-        // 清理临时文件
-        try {
-          fs.unlinkSync(tempConfigPath);
-        } catch (cleanupErr) {
-          console.error("清理临时文件失败:", cleanupErr);
-        }
-
-        resolve({
-          success: false,
-          message: `批处理执行错误: ${err.message}`,
-        });
-      });
+    // 创建批处理处理器实例
+    const processor = new BatchProcessor({
+      password: config.password,
+      suffix: config.suffix,
+      copyFilePath: config.copyFilePath,
+      copyFileEnabled: config.copyFileEnabled,
+      deleteOriginal: config.deleteOriginal,
+      extractNested: config.extractNested,
+      inputPath: config.inputPath,
+      outputPath: config.outputPath || config.inputPath,
     });
+
+    // 设置日志回调
+    processor.setLogCallback((data) => {
+      event.sender.send("batch-progress", data);
+    });
+
+    // 执行批处理
+    const result = await processor.process();
+    return result;
   } catch (error) {
     console.error("批处理执行失败:", error);
     return {
@@ -401,4 +335,64 @@ ipcMain.handle("get-system-info", async () => {
     nodeVersion: process.versions.node,
     electronVersion: process.versions.electron,
   };
+});
+
+// 测试批处理脚本执行
+ipcMain.handle("test-batch-script", async (event, config) => {
+  try {
+    console.log("测试批处理:", config);
+
+    // 检查输入路径是否存在
+    if (!config.inputPath || !fs.existsSync(config.inputPath)) {
+      return { success: false, message: "输入路径不存在或无效" };
+    }
+
+    // 创建批处理处理器实例进行测试
+    const processor = new BatchProcessor({
+      password: config.password,
+      suffix: config.suffix,
+      copyFilePath: config.copyFilePath,
+      copyFileEnabled: config.copyFileEnabled,
+      deleteOriginal: config.deleteOriginal,
+      extractNested: config.extractNested,
+      inputPath: config.inputPath,
+      outputPath: config.outputPath || config.inputPath,
+    });
+
+    // 设置日志回调
+    processor.setLogCallback((data: any) => {
+      event.sender.send("batch-progress", data);
+    });
+
+    // 执行测试
+    processor.log("开始测试批处理...");
+    processor.log(`输入路径: ${config.inputPath}`);
+    processor.log(`输出路径: ${config.outputPath || "默认路径"}`);
+    processor.log(`密码: ${config.password}`);
+    processor.log(`后缀: ${config.suffix}`);
+
+    // 检查7z是否可用
+    const has7z = await processor.check7z();
+    if (!has7z) {
+      return { success: false, message: "7-Zip 未找到或不可用" };
+    }
+
+    // 查找ZIP文件
+    const zipFiles = await processor.findZipFiles(config.inputPath);
+    if (zipFiles.length === 0) {
+      processor.log("当前目录中没有找到ZIP文件");
+      return { success: true, message: "测试完成，没有找到ZIP文件" };
+    }
+
+    processor.log(`找到 ${zipFiles.length} 个ZIP文件`);
+    processor.log("测试完成");
+
+    return { success: true, message: "测试完成", output: "所有检查通过" };
+  } catch (error) {
+    console.error("测试执行失败:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "未知错误",
+    };
+  }
 });

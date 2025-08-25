@@ -1,4 +1,4 @@
-import { rmSync, copyFileSync, existsSync } from "node:fs";
+import { rmSync, copyFileSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -15,11 +15,7 @@ export default defineConfig(({ command }) => {
 
   // 复制批处理脚本文件的函数
   const copyBatchFiles = () => {
-    const batchFiles = [
-      "final_extract_enhanced.bat",
-      "final_extract_fixed.bat",
-      "final_extract.bat",
-    ];
+    const batchFiles = ["batch-processor.cjs"];
 
     batchFiles.forEach((file) => {
       const sourcePath = path.join(__dirname, "electron", file);
@@ -43,6 +39,14 @@ export default defineConfig(({ command }) => {
       {
         name: "copy-batch-files",
         closeBundle() {
+          copyBatchFiles();
+        },
+        buildStart() {
+          // 确保目标目录存在
+          const targetDir = path.join(__dirname, "dist-electron/main");
+          if (!existsSync(targetDir)) {
+            mkdirSync(targetDir, { recursive: true });
+          }
           copyBatchFiles();
         },
       },

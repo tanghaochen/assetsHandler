@@ -43,11 +43,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // 批处理相关
   executeBatchScript: (config: any) =>
     ipcRenderer.invoke("execute-batch-script", config),
+  testBatchScript: (config: any) =>
+    ipcRenderer.invoke("test-batch-script", config),
   getSystemInfo: () => ipcRenderer.invoke("get-system-info"),
 
   // 批处理进度监听
   onBatchProgress: (callback: (data: any) => void) => {
-    ipcRenderer.on('batch-progress', (event, data) => callback(data));
+    ipcRenderer.on("batch-progress", (event, data) => callback(data));
   },
 
   // 检查是否在 Electron 环境
