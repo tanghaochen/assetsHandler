@@ -95,27 +95,51 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
     const handleResize = (e: any) => {
       console.log("Resize event:", e);
       // 让 Moveable 正常处理缩放
-      e.target.style.transform = e.drag.transform;
+      e.target.style.transform = e.transform;
     };
 
     const handleResizeEnd = (e: any) => {
       console.log("Resize end event:", e);
 
-      // 缩放结束后计算百分比尺寸
+      // 获取缩放后的实际位置和尺寸
       const rect = e.target.getBoundingClientRect();
       const containerRect = e.target.parentElement.getBoundingClientRect();
 
+      // 计算相对于容器的位置
+      const newLeft = rect.left - containerRect.left;
+      const newTop = rect.top - containerRect.top;
       const newWidth = rect.width;
       const newHeight = rect.height;
 
-      // 计算百分比尺寸
+      // 计算百分比位置和尺寸
+      const x = newLeft / imageSize.width;
+      const y = newTop / imageSize.height;
       const widthPercent = newWidth / imageSize.width;
       const heightPercent = newHeight / imageSize.height;
 
+      // 确保位置和尺寸在有效范围内
+      const clampedX = Math.max(0, Math.min(1 - widthPercent, x));
+      const clampedY = Math.max(0, Math.min(1 - heightPercent, y));
+      const clampedWidth = Math.max(0.1, Math.min(1, widthPercent));
+      const clampedHeight = Math.max(0.05, Math.min(1, heightPercent));
+
+      console.log("Resize calculations:", {
+        original: { x: newLeft, y: newTop, width: newWidth, height: newHeight },
+        percent: { x, y, width: widthPercent, height: heightPercent },
+        clamped: {
+          x: clampedX,
+          y: clampedY,
+          width: clampedWidth,
+          height: clampedHeight,
+        },
+      });
+
       onWatermarkUpdate({
         ...watermarkPosition,
-        width: Math.max(0.1, Math.min(1, widthPercent)),
-        height: Math.max(0.05, Math.min(1, heightPercent)),
+        x: clampedX,
+        y: clampedY,
+        width: clampedWidth,
+        height: clampedHeight,
       });
     };
 
