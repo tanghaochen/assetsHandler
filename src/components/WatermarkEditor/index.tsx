@@ -90,12 +90,36 @@ const WatermarkEditor: React.FC = () => {
     );
   }, [watermarkPosition]);
 
-  // 导出所有图片
+  // 导出所有图片：打包为 zip，并保留原文件名与后缀格式
   const exportAllImages = useCallback(async () => {
     if (images.length === 0) return;
 
     const { saveAs } = await import("file-saver");
     const html2canvas = (await import("html2canvas")).default;
+    const JSZip = (await import("jszip")).default;
+
+    const zip = new JSZip();
+
+    // 根据原文件名推断导出 mime 与后缀
+    const resolveMimeAndExt = (
+      fileName: string,
+    ): { mime: string; ext: string; bg: string | null } => {
+      const match = /\.([a-zA-Z0-9]+)$/.exec(fileName);
+      const ext = (match?.[1] || "png").toLowerCase();
+      // 默认透明背景；对于 jpeg 等不支持透明的格式使用白底
+      switch (ext) {
+        case "jpg":
+        case "jpeg":
+          return { mime: "image/jpeg", ext: ext, bg: "#ffffff" };
+        case "png":
+          return { mime: "image/png", ext: "png", bg: null };
+        case "webp":
+          return { mime: "image/webp", ext: "webp", bg: null };
+        default:
+          // 其他格式统一转为 png 并修改后缀
+          return { mime: "image/png", ext: "png", bg: null };
+      }
+    };
 
     for (let i = 0; i < images.length; i++) {
       setSelectedImageIndex(i);
@@ -104,20 +128,30 @@ const WatermarkEditor: React.FC = () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       if (previewRef.current) {
+        const { mime, ext, bg } = resolveMimeAndExt(images[i].file.name);
+
         const canvas = await html2canvas(previewRef.current, {
           useCORS: true,
           allowTaint: true,
-          backgroundColor: null,
+          backgroundColor: bg, // jpeg 使用白底，其余保持透明
         });
 
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const fileName = `watermarked_${images[i].file.name}`;
-            saveAs(blob, fileName);
-          }
-        });
+        // 将 canvas 转为指定格式的 Blob 并添加到 zip
+        const blob: Blob | null = await new Promise((resolve) =>
+          canvas.toBlob((b) => resolve(b), mime),
+        );
+
+        if (blob) {
+          // 保留原文件名（加前缀），并确保后缀与导出格式一致
+          const originalName = images[i].file.name.replace(/\.[^.]+$/, "");
+          const outName = `watermarked_${originalName}.${ext}`;
+          zip.file(outName, blob);
+        }
       }
     }
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    saveAs(zipBlob, "watermarked_images.zip");
   }, [images]);
 
   // 删除图片

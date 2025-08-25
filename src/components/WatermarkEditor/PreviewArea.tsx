@@ -222,13 +222,22 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
               height: `${imageSize.height}px`,
               maxWidth: "100%",
               maxHeight: "100%",
-              backgroundImage: `url(${image.url})`,
-              backgroundSize: "contain",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
               border: "1px solid #ccc",
             }}
           >
+            <img
+              src={image.url}
+              alt={image.file.name}
+              draggable={false}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+                display: "block",
+                userSelect: "none",
+              }}
+            />
             <div
               ref={watermarkRef}
               className="watermark-element"
