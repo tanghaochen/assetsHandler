@@ -6,29 +6,119 @@ import { ImageItem, WatermarkPosition } from "./types";
 import "./WatermarkEditor.css";
 
 const WatermarkEditor: React.FC = () => {
+  // 从localStorage加载保存的设置
+  const loadSettingsFromStorage = () => {
+    try {
+      const savedSettings = localStorage.getItem("watermarkEditorSettings");
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        return {
+          watermarkText: settings.watermarkText || "Watermark",
+          watermarkColor: settings.watermarkColor || "#ffffff",
+          watermarkOpacity: settings.watermarkOpacity || 1.0,
+          watermarkFontSize: settings.watermarkFontSize || 24,
+          watermarkType: settings.watermarkType || "text",
+          watermarkImageUrl: settings.watermarkImageUrl || "",
+          exportSettings: {
+            outputPath: settings.exportSettings?.outputPath || "",
+          },
+          watermarkPosition: settings.watermarkPosition || {
+            x: 0.5,
+            y: 0.5,
+            width: 0.3,
+            height: 0.1,
+            rotation: 0,
+          },
+        };
+      }
+    } catch (error) {
+      console.error("加载设置失败:", error);
+    }
+
+    // 返回默认设置
+    return {
+      watermarkText: "Watermark",
+      watermarkColor: "#ffffff",
+      watermarkOpacity: 1.0,
+      watermarkFontSize: 24,
+      watermarkType: "text" as "text" | "image",
+      watermarkImageUrl: "",
+      exportSettings: {
+        outputPath: "",
+      },
+      watermarkPosition: {
+        x: 0.5,
+        y: 0.5,
+        width: 0.3,
+        height: 0.1,
+        rotation: 0,
+      },
+    };
+  };
+
+  // 保存设置到localStorage
+  const saveSettingsToStorage = (settings: any) => {
+    try {
+      localStorage.setItem("watermarkEditorSettings", JSON.stringify(settings));
+    } catch (error) {
+      console.error("保存设置失败:", error);
+    }
+  };
+
+  const initialSettings = loadSettingsFromStorage();
+
   const [images, setImages] = useState<ImageItem[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
-  const [watermarkText, setWatermarkText] = useState<string>("Watermark");
-  const [watermarkColor, setWatermarkColor] = useState<string>("#ffffff");
-  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(1.0);
-  const [watermarkFontSize, setWatermarkFontSize] = useState<number>(24);
-  const [watermarkType, setWatermarkType] = useState<"text" | "image">("text");
-  const [watermarkImageUrl, setWatermarkImageUrl] = useState<string>("");
-  const [exportSettings, setExportSettings] = useState({
-    outputPath: "",
-  });
+  const [watermarkText, setWatermarkText] = useState<string>(
+    initialSettings.watermarkText,
+  );
+  const [watermarkColor, setWatermarkColor] = useState<string>(
+    initialSettings.watermarkColor,
+  );
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(
+    initialSettings.watermarkOpacity,
+  );
+  const [watermarkFontSize, setWatermarkFontSize] = useState<number>(
+    initialSettings.watermarkFontSize,
+  );
+  const [watermarkType, setWatermarkType] = useState<"text" | "image">(
+    initialSettings.watermarkType,
+  );
+  const [watermarkImageUrl, setWatermarkImageUrl] = useState<string>(
+    initialSettings.watermarkImageUrl,
+  );
+  const [exportSettings, setExportSettings] = useState(
+    initialSettings.exportSettings,
+  );
   const [watermarkPosition, setWatermarkPosition] = useState<WatermarkPosition>(
-    {
-      x: 0.5,
-      y: 0.5,
-      width: 0.3,
-      height: 0.1,
-      rotation: 0,
-    },
+    initialSettings.watermarkPosition,
   );
 
   const previewRef = useRef<HTMLDivElement>(null);
   const watermarkRef = useRef<HTMLDivElement>(null);
+
+  // 通用的设置保存函数
+  const saveAllSettings = useCallback(() => {
+    saveSettingsToStorage({
+      watermarkText,
+      watermarkColor,
+      watermarkOpacity,
+      watermarkFontSize,
+      watermarkType,
+      watermarkImageUrl,
+      exportSettings,
+      watermarkPosition,
+    });
+  }, [
+    watermarkText,
+    watermarkColor,
+    watermarkOpacity,
+    watermarkFontSize,
+    watermarkType,
+    watermarkImageUrl,
+    exportSettings,
+    watermarkPosition,
+  ]);
 
   // 处理图片上传
   const handleImageUpload = useCallback(
@@ -80,23 +170,92 @@ const WatermarkEditor: React.FC = () => {
           ),
         );
       }
+
+      // 保存设置到localStorage
+      setTimeout(() => saveAllSettings(), 0);
     },
-    [selectedImageIndex],
+    [selectedImageIndex, saveAllSettings],
   );
 
   // 处理水印图片上传
-  const handleWatermarkImageChange = useCallback((file: File) => {
-    const url = URL.createObjectURL(file);
-    setWatermarkImageUrl(url);
-    console.log("水印图片已上传:", file.name);
-  }, []);
+  const handleWatermarkImageChange = useCallback(
+    (file: File) => {
+      const url = URL.createObjectURL(file);
+      setWatermarkImageUrl(url);
+      console.log("水印图片已上传:", file.name);
+
+      // 将文件转换为base64以便保存到localStorage
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        setWatermarkImageUrl(base64);
+
+        // 保存设置到localStorage
+        setTimeout(() => saveAllSettings(), 0);
+      };
+      reader.readAsDataURL(file);
+    },
+    [saveAllSettings],
+  );
 
   // 处理导出设置更新
   const handleExportSettingsChange = useCallback(
     (settings: { outputPath?: string }) => {
-      setExportSettings((prev) => ({ ...prev, ...settings }));
+      setExportSettings((prev) => {
+        const newSettings = { ...prev, ...settings };
+
+        // 保存设置到localStorage
+        setTimeout(() => saveAllSettings(), 0);
+
+        return newSettings;
+      });
     },
-    [],
+    [saveAllSettings],
+  );
+
+  // 包装函数：处理水印文本更新
+  const handleWatermarkTextChange = useCallback(
+    (text: string) => {
+      setWatermarkText(text);
+      setTimeout(() => saveAllSettings(), 0);
+    },
+    [saveAllSettings],
+  );
+
+  // 包装函数：处理水印颜色更新
+  const handleWatermarkColorChange = useCallback(
+    (color: string) => {
+      setWatermarkColor(color);
+      setTimeout(() => saveAllSettings(), 0);
+    },
+    [saveAllSettings],
+  );
+
+  // 包装函数：处理水印透明度更新
+  const handleWatermarkOpacityChange = useCallback(
+    (opacity: number) => {
+      setWatermarkOpacity(opacity);
+      setTimeout(() => saveAllSettings(), 0);
+    },
+    [saveAllSettings],
+  );
+
+  // 包装函数：处理水印字体大小更新
+  const handleWatermarkFontSizeChange = useCallback(
+    (size: number) => {
+      setWatermarkFontSize(size);
+      setTimeout(() => saveAllSettings(), 0);
+    },
+    [saveAllSettings],
+  );
+
+  // 包装函数：处理水印类型更新
+  const handleWatermarkTypeChange = useCallback(
+    (type: "text" | "image") => {
+      setWatermarkType(type);
+      setTimeout(() => saveAllSettings(), 0);
+    },
+    [saveAllSettings],
   );
 
   // 应用到所有图片 - 将当前水印位置以百分比形式应用到所有图片
@@ -449,11 +608,11 @@ const WatermarkEditor: React.FC = () => {
             watermarkFontSize={watermarkFontSize}
             watermarkType={watermarkType}
             watermarkImageUrl={watermarkImageUrl}
-            onWatermarkTextChange={setWatermarkText}
-            onWatermarkColorChange={setWatermarkColor}
-            onWatermarkOpacityChange={setWatermarkOpacity}
-            onWatermarkFontSizeChange={setWatermarkFontSize}
-            onWatermarkTypeChange={setWatermarkType}
+            onWatermarkTextChange={handleWatermarkTextChange}
+            onWatermarkColorChange={handleWatermarkColorChange}
+            onWatermarkOpacityChange={handleWatermarkOpacityChange}
+            onWatermarkFontSizeChange={handleWatermarkFontSizeChange}
+            onWatermarkTypeChange={handleWatermarkTypeChange}
             onWatermarkImageChange={handleWatermarkImageChange}
             exportSettings={exportSettings}
             onExportSettingsChange={handleExportSettingsChange}
