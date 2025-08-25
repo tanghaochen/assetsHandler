@@ -1,17 +1,17 @@
-import React from 'react'
+import React from "react";
 
 interface SettingsPanelProps {
-  watermarkText: string
-  watermarkColor: string
-  watermarkOpacity: number
-  watermarkFontSize: number
-  onWatermarkTextChange: (text: string) => void
-  onWatermarkColorChange: (color: string) => void
-  onWatermarkOpacityChange: (opacity: number) => void
-  onWatermarkFontSizeChange: (size: number) => void
-  onApplyToAll: () => void
-  onExportAll: () => void
-  imageCount: number
+  watermarkText: string;
+  watermarkColor: string;
+  watermarkOpacity: number;
+  watermarkFontSize: number;
+  onWatermarkTextChange: (text: string) => void;
+  onWatermarkColorChange: (color: string) => void;
+  onWatermarkOpacityChange: (opacity: number) => void;
+  onWatermarkFontSizeChange: (size: number) => void;
+  onApplyToAll: () => void;
+  onExportAll: () => void;
+  imageCount: number;
 }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -25,12 +25,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onWatermarkFontSizeChange,
   onApplyToAll,
   onExportAll,
-  imageCount
+  imageCount,
 }) => {
   const presetColors = [
-    '#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff',
-    '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#800080'
-  ]
+    "#ffffff",
+    "#000000",
+    "#ff0000",
+    "#00ff00",
+    "#0000ff",
+    "#ffff00",
+    "#ff00ff",
+    "#00ffff",
+    "#ffa500",
+    "#800080",
+  ];
 
   return (
     <div className="settings-panel">
@@ -60,7 +68,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               min="12"
               max="72"
               value={watermarkFontSize}
-              onChange={(e) => onWatermarkFontSizeChange(Number(e.target.value))}
+              onChange={(e) =>
+                onWatermarkFontSizeChange(Number(e.target.value))
+              }
               className="range-slider"
             />
             <span className="range-value">{watermarkFontSize}px</span>
@@ -81,7 +91,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               {presetColors.map((color) => (
                 <button
                   key={color}
-                  className={`color-preset ${watermarkColor === color ? 'active' : ''}`}
+                  className={`color-preset ${
+                    watermarkColor === color ? "active" : ""
+                  }`}
                   style={{ backgroundColor: color }}
                   onClick={() => onWatermarkColorChange(color)}
                   title={color}
@@ -104,20 +116,37 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               onChange={(e) => onWatermarkOpacityChange(Number(e.target.value))}
               className="range-slider"
             />
-            <span className="range-value">{Math.round(watermarkOpacity * 100)}%</span>
+            <span className="range-value">
+              {Math.round(watermarkOpacity * 100)}%
+            </span>
           </div>
         </div>
 
         {/* 操作按钮 */}
         <div className="action-buttons">
+          <div className="action-description">
+            <p className="text-xs text-gray-500 mb-2">
+              提示：每张图片可以单独设置水印位置，点击"应用到全部"将当前水印位置以百分比形式应用到所有图片
+            </p>
+          </div>
           <button
             onClick={onApplyToAll}
             disabled={imageCount === 0}
             className="action-btn apply-btn"
-            title="将当前水印设置应用到所有图片"
+            title="将当前水印位置以百分比形式应用到所有图片，适应不同尺寸"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+              />
             </svg>
             应用到全部 ({imageCount})
           </button>
@@ -128,8 +157,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="action-btn export-btn"
             title="导出所有带水印的图片"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             导出所有图片
           </button>
@@ -145,17 +184,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 color: watermarkColor,
                 opacity: watermarkOpacity,
                 fontSize: `${watermarkFontSize}px`,
-                textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-                fontWeight: 'bold'
+                textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+                fontWeight: "bold",
               }}
             >
-              {watermarkText || '预览文本'}
+              {watermarkText || "预览文本"}
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default SettingsPanel
+export default SettingsPanel;

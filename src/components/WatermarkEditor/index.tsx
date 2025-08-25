@@ -46,9 +46,14 @@ const WatermarkEditor: React.FC = () => {
   // 处理图片选择
   const handleImageSelect = useCallback(
     (index: number) => {
+      console.log(
+        `选择图片 ${index}，当前水印位置:`,
+        images[index]?.watermarkPosition,
+      );
       setSelectedImageIndex(index);
       if (images[index]) {
-        setWatermarkPosition(images[index].watermarkPosition);
+        // 加载该图片的独立水印位置设置
+        setWatermarkPosition({ ...images[index].watermarkPosition });
       }
     },
     [images],
@@ -57,6 +62,7 @@ const WatermarkEditor: React.FC = () => {
   // 处理水印位置更新
   const handleWatermarkUpdate = useCallback(
     (newPosition: WatermarkPosition) => {
+      console.log(`更新图片 ${selectedImageIndex} 的水印位置:`, newPosition);
       setWatermarkPosition(newPosition);
 
       // 更新当前选中图片的水印位置
@@ -73,12 +79,13 @@ const WatermarkEditor: React.FC = () => {
     [selectedImageIndex],
   );
 
-  // 应用到所有图片
+  // 应用到所有图片 - 将当前水印位置以百分比形式应用到所有图片
   const applyToAllImages = useCallback(() => {
+    console.log("应用到所有图片，当前水印位置:", watermarkPosition);
     setImages((prev) =>
       prev.map((img) => ({
         ...img,
-        watermarkPosition: { ...watermarkPosition },
+        watermarkPosition: { ...watermarkPosition }, // 使用百分比位置，适应每张图片
       })),
     );
   }, [watermarkPosition]);

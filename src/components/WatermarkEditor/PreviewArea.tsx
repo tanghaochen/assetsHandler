@@ -52,28 +52,29 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       console.log("WatermarkRef current:", watermarkRef.current);
     }, [showMoveable]);
 
+    // 当水印位置变化时，更新水印元素的样式
+    useEffect(() => {
+      if (watermarkRef.current && imageSize.width && imageSize.height) {
+        const style = getWatermarkStyle();
+        Object.assign(watermarkRef.current.style, style);
+      }
+    }, [watermarkPosition, imageSize.width, imageSize.height]);
+
     const handleDrag = (e: any) => {
       console.log("Drag event:", e);
+      // 让 Moveable 正常处理拖拽
+      e.target.style.transform = e.transform;
+    };
 
-      // 获取图片容器的边界
-      const imageContainer = e.target.parentElement;
-      const watermarkRect = e.target.getBoundingClientRect();
+    const handleDragEnd = (e: any) => {
+      console.log("Drag end event:", e);
 
-      // 计算新的位置
-      let newLeft = watermarkRect.left - imageContainer.offsetLeft;
-      let newTop = watermarkRect.top - imageContainer.offsetTop;
+      // 拖拽结束后计算百分比位置
+      const rect = e.target.getBoundingClientRect();
+      const containerRect = e.target.parentElement.getBoundingClientRect();
 
-      // 限制在图片范围内
-      const maxLeft = imageSize.width - watermarkRect.width;
-      const maxTop = imageSize.height - watermarkRect.height;
-
-      newLeft = Math.max(0, Math.min(maxLeft, newLeft));
-      newTop = Math.max(0, Math.min(maxTop, newTop));
-
-      // 应用限制后的位置
-      e.target.style.left = `${newLeft}px`;
-      e.target.style.top = `${newTop}px`;
-      e.target.style.transform = e.transform.replace(/translate\([^)]+\)/, "");
+      const newLeft = rect.left - containerRect.left;
+      const newTop = rect.top - containerRect.top;
 
       // 计算百分比位置
       const x = newLeft / imageSize.width;
@@ -88,29 +89,19 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     const handleResize = (e: any) => {
       console.log("Resize event:", e);
-
-      // 限制最大尺寸不超过图片
-      const maxWidth = imageSize.width;
-      const maxHeight = imageSize.height;
-
-      const newWidth = Math.min(e.width, maxWidth);
-      const newHeight = Math.min(e.height, maxHeight);
-
-      // 应用尺寸
-      e.target.style.width = `${newWidth}px`;
-      e.target.style.height = `${newHeight}px`;
+      // 让 Moveable 正常处理缩放
       e.target.style.transform = e.drag.transform;
+    };
 
-      // 确保位置不超出边界
-      const currentLeft = parseFloat(e.target.style.left) || 0;
-      const currentTop = parseFloat(e.target.style.top) || 0;
+    const handleResizeEnd = (e: any) => {
+      console.log("Resize end event:", e);
 
-      if (currentLeft + newWidth > maxWidth) {
-        e.target.style.left = `${maxWidth - newWidth}px`;
-      }
-      if (currentTop + newHeight > maxHeight) {
-        e.target.style.top = `${maxHeight - newHeight}px`;
-      }
+      // 缩放结束后计算百分比尺寸
+      const rect = e.target.getBoundingClientRect();
+      const containerRect = e.target.parentElement.getBoundingClientRect();
+
+      const newWidth = rect.width;
+      const newHeight = rect.height;
 
       // 计算百分比尺寸
       const widthPercent = newWidth / imageSize.width;
@@ -125,9 +116,14 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     const handleRotate = (e: any) => {
       console.log("Rotate event:", e);
+      // 让 Moveable 正常处理旋转
       e.target.style.transform = e.transform;
+    };
 
-      // 从transform中提取旋转角度
+    const handleRotateEnd = (e: any) => {
+      console.log("Rotate end event:", e);
+
+      // 旋转结束后提取旋转角度
       const rotation = parseFloat(
         e.transform.match(/rotate\(([^)]+)deg\)/)?.[1] || "0",
       );
@@ -141,7 +137,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
     const getWatermarkStyle = () => {
       if (!imageSize.width || !imageSize.height) return {};
 
-      // 计算像素尺寸 - 直接使用图片尺寸
+      // 计算像素尺寸 - 将百分比位置转换为像素位置，适应不同尺寸的图片
       const pixelWidth = watermarkPosition.width * imageSize.width;
       const pixelHeight = watermarkPosition.height * imageSize.height;
       const pixelX = watermarkPosition.x * imageSize.width;
@@ -250,15 +246,12 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
                   bottom: 0,
                   position: "css",
                 }}
-                onDrag={(e) => {
-                  e.target.style.transform = e.transform;
-                }}
-                onScale={(e) => {
-                  e.target.style.transform = e.drag.transform;
-                }}
-                onBound={(e) => {
-                  console.log(e);
-                }}
+                onDrag={handleDrag}
+                onDragEnd={handleDragEnd}
+                onScale={handleResize}
+                onScaleEnd={handleResizeEnd}
+                onRotate={handleRotate}
+                onRotateEnd={handleRotateEnd}
               />
             )}
           </div>
