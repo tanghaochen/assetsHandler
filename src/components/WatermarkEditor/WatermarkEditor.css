@@ -27,6 +27,8 @@
 /* 左侧图片列表面板 */
 .image-list-panel {
   width: 300px;
+  min-width: 300px;
+  flex-shrink: 0;
   background-color: white;
   border-right: 1px solid #e2e8f0;
   display: flex;
@@ -45,6 +47,44 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-btn {
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.add-btn:hover {
+  background-color: #2563eb;
+}
+
+.clear-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.clear-btn:hover {
+  background-color: #dc2626;
 }
 
 .image-list-content {
@@ -140,6 +180,11 @@
 
 .delete-btn:hover {
   background-color: #dc2626;
+}
+
+.delete-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .image-info {

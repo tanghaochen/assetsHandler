@@ -269,6 +269,12 @@ const WatermarkEditor: React.FC = () => {
     [selectedImageIndex],
   );
 
+  // 清除所有图片
+  const handleClearAll = useCallback(() => {
+    setImages([]);
+    setSelectedImageIndex(-1);
+  }, []);
+
   const selectedImage =
     selectedImageIndex >= 0 ? images[selectedImageIndex] : null;
 
@@ -287,6 +293,7 @@ const WatermarkEditor: React.FC = () => {
             onImageSelect={handleImageSelect}
             onImageUpload={handleImageUpload}
             onDeleteImage={handleDeleteImage}
+            onClearAll={handleClearAll}
           />
         </div>
 

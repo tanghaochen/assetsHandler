@@ -7,6 +7,7 @@ interface ImageListProps {
   onImageSelect: (index: number) => void;
   onImageUpload: (files: FileList) => void;
   onDeleteImage: (index: number) => void;
+  onClearAll: () => void;
 }
 
 const ImageList: React.FC<ImageListProps> = ({
@@ -15,6 +16,7 @@ const ImageList: React.FC<ImageListProps> = ({
   onImageSelect,
   onImageUpload,
   onDeleteImage,
+  onClearAll,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -71,12 +73,23 @@ const ImageList: React.FC<ImageListProps> = ({
     <div className="image-list">
       <div className="image-list-header">
         <h3 className="text-lg font-semibold text-gray-700">图片列表</h3>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          添加图片
-        </button>
+        <div className="header-buttons">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="add-btn"
+          >
+            添加图片
+          </button>
+          {images.length > 0 && (
+            <button
+              onClick={onClearAll}
+              className="clear-btn"
+              title="清除所有图片"
+            >
+              清除全部
+            </button>
+          )}
+        </div>
       </div>
 
       <input
@@ -147,7 +160,7 @@ const ImageList: React.FC<ImageListProps> = ({
                       title="删除图片"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="delete-icon"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -156,7 +169,7 @@ const ImageList: React.FC<ImageListProps> = ({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          d="M6 18L18 6M6 6l12 12"
                         />
                       </svg>
                     </button>
