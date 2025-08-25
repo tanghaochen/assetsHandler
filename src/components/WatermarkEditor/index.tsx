@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { Snackbar, Alert } from "@mui/material";
 import ImageList from "./ImageList";
 import PreviewArea from "./PreviewArea";
 import SettingsPanel from "./SettingsPanel";
@@ -96,8 +97,152 @@ const WatermarkEditor: React.FC = () => {
     initialSettings.watermarkPosition,
   );
 
+  // Snackbar 状态
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<
+    "success" | "error" | "info" | "warning"
+  >("success");
+
   const previewRef = useRef<HTMLDivElement>(null);
   const watermarkRef = useRef<HTMLDivElement>(null);
+
+  // Snackbar 处理函数
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
+
+  const showSnackbar = (
+    message: string,
+    severity: "success" | "error" | "info" | "warning" = "success",
+  ) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  // 处理文件拖拽
+  const handleFileDrop = useCallback(
+    (filePaths: string[]) => {
+      console.log("收到拖拽文件:", filePaths);
+
+      // 过滤图片文件
+      const imageExtensions = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".webp",
+      ];
+      const imageFiles = filePaths.filter((path) => {
+        const ext = path.toLowerCase().substring(path.lastIndexOf("."));
+        return imageExtensions.includes(ext);
+      });
+
+      if (imageFiles.length === 0) {
+        alert("请拖拽图片文件！");
+        return;
+      }
+
+      // 将文件路径转换为 File 对象
+      const newImages: ImageItem[] = imageFiles.map((filePath, index) => {
+        // 在 Electron 环境中，我们需要从文件路径创建 File 对象
+        const fileName = filePath.substring(filePath.lastIndexOf("\\") + 1);
+        const file = new File([], fileName, { type: "image/*" });
+
+        return {
+          id: Date.now() + index,
+          file,
+          url: `file://${filePath}`, // 使用 file:// 协议
+          watermarkPosition: { ...watermarkPosition },
+        };
+      });
+
+      setImages((prev) => [...prev, ...newImages]);
+      if (selectedImageIndex === -1 && newImages.length > 0) {
+        setSelectedImageIndex(0);
+      }
+    },
+    [selectedImageIndex, watermarkPosition],
+  );
+
+  // 监听文件拖拽事件
+  useEffect(() => {
+    const handleFileDropEvent = (event: CustomEvent) => {
+      const { files } = event.detail;
+      handleFileDrop(files);
+    };
+
+    const handleElectronFileDropEvent = (event: CustomEvent) => {
+      const { files, filePaths } = event.detail;
+      console.log("Electron file drop event:", files, filePaths);
+
+      // 在 Electron 环境中，直接使用文件对象
+      if (files && files.length > 0) {
+        // 过滤图片文件
+        const imageFiles = Array.from(files).filter((file: any) => {
+          const fileName = file.name.toLowerCase();
+          const imageExtensions = [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".webp",
+          ];
+          return (
+            file.type.startsWith("image/") ||
+            imageExtensions.some((ext) => fileName.endsWith(ext))
+          );
+        });
+
+        if (imageFiles.length > 0) {
+          // 创建 FileList 对象
+          const dataTransfer = new DataTransfer();
+          imageFiles.forEach((file: any) => dataTransfer.items.add(file));
+
+          // 直接处理文件上传
+          const newImages: ImageItem[] = Array.from(dataTransfer.files).map(
+            (file, index) => ({
+              id: Date.now() + index,
+              file,
+              url: URL.createObjectURL(file),
+              watermarkPosition: { ...watermarkPosition },
+            }),
+          );
+
+          setImages((prev) => [...prev, ...newImages]);
+          if (selectedImageIndex === -1 && newImages.length > 0) {
+            setSelectedImageIndex(0);
+          }
+        } else {
+          alert("请拖拽图片文件！");
+        }
+      }
+    };
+
+    document.addEventListener(
+      "file-drop",
+      handleFileDropEvent as EventListener,
+    );
+
+    document.addEventListener(
+      "electron-file-drop",
+      handleElectronFileDropEvent as EventListener,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "file-drop",
+        handleFileDropEvent as EventListener,
+      );
+      document.removeEventListener(
+        "electron-file-drop",
+        handleElectronFileDropEvent as EventListener,
+      );
+    };
+  }, [handleFileDrop]);
 
   // 通用的设置保存函数
   const saveAllSettings = useCallback(() => {
@@ -125,12 +270,16 @@ const WatermarkEditor: React.FC = () => {
   // 处理图片上传
   const handleImageUpload = useCallback(
     (files: FileList) => {
+      console.log("handleImageUpload called with files:", files);
+
       const newImages: ImageItem[] = Array.from(files).map((file, index) => ({
         id: Date.now() + index,
         file,
         url: URL.createObjectURL(file),
         watermarkPosition: { ...watermarkPosition },
       }));
+
+      console.log("Created new images:", newImages);
 
       setImages((prev) => [...prev, ...newImages]);
       if (selectedImageIndex === -1 && newImages.length > 0) {
@@ -308,8 +457,10 @@ const WatermarkEditor: React.FC = () => {
   const exportAllImages = useCallback(async () => {
     if (images.length === 0) return;
 
+    // 显示开始导出的提示
+    showSnackbar("正在处理图片，请稍候...", "info");
+
     const { saveAs } = await import("file-saver");
-    const html2canvas = (await import("html2canvas")).default;
     const JSZip = (await import("jszip")).default;
 
     const zip = new JSZip();
@@ -343,202 +494,159 @@ const WatermarkEditor: React.FC = () => {
       }
     };
 
-    // 临时保存当前选中的图片索引和水印位置
-    const originalSelectedIndex = selectedImageIndex;
-    const originalWatermarkPosition = { ...watermarkPosition };
-
-    for (let i = 0; i < images.length; i++) {
-      console.log(`导出第 ${i + 1} 张图片:`, images[i].file.name);
-      console.log(`水印位置设置:`, images[i].watermarkPosition);
-
-      // 切换到当前图片并应用其水印位置设置
-      setSelectedImageIndex(i);
-      setWatermarkPosition({ ...images[i].watermarkPosition });
-
-      // 等待DOM更新，确保水印位置正确应用
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      if (previewRef.current) {
-        // 临时隐藏所有 moveable 控件和预览区域的交互元素
-        const moveableElements = previewRef.current.querySelectorAll(
-          '[class*="moveable"], [class*="Moveable"]',
-        );
-        const originalDisplay: string[] = [];
-        moveableElements.forEach((el) => {
-          originalDisplay.push((el as HTMLElement).style.display);
-          (el as HTMLElement).style.display = "none";
-        });
-
-        // 隐藏预览区域的交互提示
-        const previewFooter =
-          previewRef.current.querySelector(".preview-footer");
-        if (previewFooter) {
-          (previewFooter as HTMLElement).style.display = "none";
-        }
-
-        const { mime, ext, bg } = resolveMimeAndExt(images[i].file.name);
-
-        try {
-          // 获取图片实际尺寸
-          const getImageSize = (): Promise<{
-            width: number;
-            height: number;
-          }> => {
-            return new Promise((resolve) => {
-              const img = new Image();
-              img.onload = () => {
-                resolve({ width: img.width, height: img.height });
-              };
-              img.src = images[i].url;
-            });
-          };
-
-          const imageSize = await getImageSize();
-
-          // 创建一个临时的canvas来合成图片和水印
-          const tempCanvas = document.createElement("canvas");
-          const tempCtx = tempCanvas.getContext("2d");
-          tempCanvas.width = imageSize.width; // 保持原图尺寸
-          tempCanvas.height = imageSize.height;
-
-          if (tempCtx) {
-            // 设置背景色
-            if (bg) {
-              tempCtx.fillStyle = bg;
-              tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            }
-
-            // 绘制原图
-            const img = new Image();
-            await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-              img.src = images[i].url;
-            });
-
-            tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
-
-            // 绘制水印
-            if (watermarkType === "text" && watermarkText) {
-              tempCtx.save();
-              tempCtx.globalAlpha = watermarkOpacity;
-              tempCtx.fillStyle = watermarkColor;
-              tempCtx.font = `bold ${watermarkFontSize}px Arial`; // 使用原始字体大小
-              tempCtx.textAlign = "center";
-              tempCtx.textBaseline = "middle";
-
-              // 计算水印位置（基于百分比）
-              const watermarkX = watermarkPosition.x * tempCanvas.width;
-              const watermarkY = watermarkPosition.y * tempCanvas.height;
-
-              // 计算水印尺寸
-              const watermarkWidth = watermarkPosition.width * tempCanvas.width;
-              const watermarkHeight =
-                watermarkPosition.height * tempCanvas.height;
-
-              // 应用旋转
-              if (watermarkPosition.rotation !== 0) {
-                tempCtx.translate(
-                  watermarkX + watermarkWidth / 2,
-                  watermarkY + watermarkHeight / 2,
-                );
-                tempCtx.rotate((watermarkPosition.rotation * Math.PI) / 180);
-                tempCtx.fillText(watermarkText, 0, 0);
-                tempCtx.setTransform(1, 0, 0, 1, 0, 0);
-              } else {
-                tempCtx.fillText(
-                  watermarkText,
-                  watermarkX + watermarkWidth / 2,
-                  watermarkY + watermarkHeight / 2,
-                );
-              }
-              tempCtx.restore();
-            } else if (watermarkType === "image" && watermarkImageUrl) {
-              // 绘制图片水印
-              const watermarkImg = new Image();
-              await new Promise((resolve, reject) => {
-                watermarkImg.onload = resolve;
-                watermarkImg.onerror = reject;
-                watermarkImg.src = watermarkImageUrl;
-              });
-
-              tempCtx.save();
-              tempCtx.globalAlpha = watermarkOpacity;
-
-              // 计算水印位置和尺寸
-              const watermarkWidth = watermarkPosition.width * tempCanvas.width;
-              const watermarkHeight =
-                watermarkPosition.height * tempCanvas.height;
-              const watermarkX = watermarkPosition.x * tempCanvas.width;
-              const watermarkY = watermarkPosition.y * tempCanvas.height;
-
-              // 应用旋转
-              if (watermarkPosition.rotation !== 0) {
-                tempCtx.translate(
-                  watermarkX + watermarkWidth / 2,
-                  watermarkY + watermarkHeight / 2,
-                );
-                tempCtx.rotate((watermarkPosition.rotation * Math.PI) / 180);
-                tempCtx.drawImage(
-                  watermarkImg,
-                  -watermarkWidth / 2,
-                  -watermarkHeight / 2,
-                  watermarkWidth,
-                  watermarkHeight,
-                );
-                tempCtx.setTransform(1, 0, 0, 1, 0, 0);
-              } else {
-                tempCtx.drawImage(
-                  watermarkImg,
-                  watermarkX,
-                  watermarkY,
-                  watermarkWidth,
-                  watermarkHeight,
-                );
-              }
-              tempCtx.restore();
-            }
-
-            // 将临时canvas转换为blob，设置合适的质量
-            const quality = mime === "image/jpeg" ? 0.9 : 1.0; // JPEG使用0.9质量，其他格式使用最高质量
-            const blob: Blob | null = await new Promise((resolve) =>
-              tempCanvas.toBlob((b) => resolve(b), mime, quality),
-            );
-
-            if (blob) {
-              const originalName = images[i].file.name.replace(/\.[^.]+$/, "");
-              const outName = `watermarked_${originalName}.${ext}`;
-              zip.file(outName, blob);
-              console.log(
-                `成功添加文件到ZIP: ${outName}, 大小: ${(
-                  blob.size /
-                  1024 /
-                  1024
-                ).toFixed(2)}MB`,
-              );
-            }
-          }
-
-          // 恢复 moveable 控件的显示
-          moveableElements.forEach((el, index) => {
-            (el as HTMLElement).style.display = originalDisplay[index];
-          });
-
-          // 恢复预览区域提示
-          if (previewFooter) {
-            (previewFooter as HTMLElement).style.display = "";
-          }
-        } catch (error) {
-          console.error(`导出图片 ${images[i].file.name} 时出错:`, error);
-        }
-      }
+    // 预加载水印图片（如果使用图片水印）
+    let watermarkImg: HTMLImageElement | null = null;
+    if (watermarkType === "image" && watermarkImageUrl) {
+      watermarkImg = new Image();
+      await new Promise((resolve, reject) => {
+        watermarkImg!.onload = resolve;
+        watermarkImg!.onerror = reject;
+        watermarkImg!.src = watermarkImageUrl;
+      });
     }
 
-    // 恢复原始选中的图片索引和水印位置
-    setSelectedImageIndex(originalSelectedIndex);
-    setWatermarkPosition(originalWatermarkPosition);
+    // 批量处理所有图片
+    const processPromises = images.map(async (image, index) => {
+      console.log(`处理第 ${index + 1} 张图片:`, image.file.name);
+
+      const { mime, ext, bg } = resolveMimeAndExt(image.file.name);
+      const watermarkPosition = image.watermarkPosition;
+
+      try {
+        // 获取图片实际尺寸
+        const imageSize = await new Promise<{ width: number; height: number }>(
+          (resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              resolve({ width: img.width, height: img.height });
+            };
+            img.src = image.url;
+          },
+        );
+
+        // 创建一个临时的canvas来合成图片和水印
+        const tempCanvas = document.createElement("canvas");
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCanvas.width = imageSize.width;
+        tempCanvas.height = imageSize.height;
+
+        if (tempCtx) {
+          // 设置背景色
+          if (bg) {
+            tempCtx.fillStyle = bg;
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+          }
+
+          // 绘制原图
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = image.url;
+          });
+
+          tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+
+          // 绘制水印
+          if (watermarkType === "text" && watermarkText) {
+            tempCtx.save();
+            tempCtx.globalAlpha = watermarkOpacity;
+            tempCtx.fillStyle = watermarkColor;
+            tempCtx.font = `bold ${watermarkFontSize}px Arial`;
+            tempCtx.textAlign = "center";
+            tempCtx.textBaseline = "middle";
+
+            // 计算水印位置（基于百分比）
+            const watermarkX = watermarkPosition.x * tempCanvas.width;
+            const watermarkY = watermarkPosition.y * tempCanvas.height;
+            const watermarkWidth = watermarkPosition.width * tempCanvas.width;
+            const watermarkHeight =
+              watermarkPosition.height * tempCanvas.height;
+
+            // 应用旋转
+            if (watermarkPosition.rotation !== 0) {
+              tempCtx.translate(
+                watermarkX + watermarkWidth / 2,
+                watermarkY + watermarkHeight / 2,
+              );
+              tempCtx.rotate((watermarkPosition.rotation * Math.PI) / 180);
+              tempCtx.fillText(watermarkText, 0, 0);
+              tempCtx.setTransform(1, 0, 0, 1, 0, 0);
+            } else {
+              tempCtx.fillText(
+                watermarkText,
+                watermarkX + watermarkWidth / 2,
+                watermarkY + watermarkHeight / 2,
+              );
+            }
+            tempCtx.restore();
+          } else if (watermarkType === "image" && watermarkImg) {
+            tempCtx.save();
+            tempCtx.globalAlpha = watermarkOpacity;
+
+            // 计算水印位置和尺寸
+            const watermarkWidth = watermarkPosition.width * tempCanvas.width;
+            const watermarkHeight =
+              watermarkPosition.height * tempCanvas.height;
+            const watermarkX = watermarkPosition.x * tempCanvas.width;
+            const watermarkY = watermarkPosition.y * tempCanvas.height;
+
+            // 应用旋转
+            if (watermarkPosition.rotation !== 0) {
+              tempCtx.translate(
+                watermarkX + watermarkWidth / 2,
+                watermarkY + watermarkHeight / 2,
+              );
+              tempCtx.rotate((watermarkPosition.rotation * Math.PI) / 180);
+              tempCtx.drawImage(
+                watermarkImg,
+                -watermarkWidth / 2,
+                -watermarkHeight / 2,
+                watermarkWidth,
+                watermarkHeight,
+              );
+              tempCtx.setTransform(1, 0, 0, 1, 0, 0);
+            } else {
+              tempCtx.drawImage(
+                watermarkImg,
+                watermarkX,
+                watermarkY,
+                watermarkWidth,
+                watermarkHeight,
+              );
+            }
+            tempCtx.restore();
+          }
+
+          // 将临时canvas转换为blob，设置合适的质量
+          const quality = mime === "image/jpeg" ? 0.9 : 1.0;
+          const blob: Blob | null = await new Promise((resolve) =>
+            tempCanvas.toBlob((b) => resolve(b), mime, quality),
+          );
+
+          if (blob) {
+            const originalName = image.file.name.replace(/\.[^.]+$/, "");
+            const outName = `watermarked_${originalName}.${ext}`;
+            zip.file(outName, blob);
+            console.log(
+              `成功添加文件到ZIP: ${outName}, 大小: ${(
+                blob.size /
+                1024 /
+                1024
+              ).toFixed(2)}MB`,
+            );
+          }
+        }
+      } catch (error) {
+        console.error(`处理图片 ${image.file.name} 时出错:`, error);
+      }
+    });
+
+    // 并行处理所有图片
+    await Promise.all(processPromises);
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
+
     // 使用当前时间生成文件名
     const now = new Date();
     const timestamp =
@@ -569,21 +677,38 @@ const WatermarkEditor: React.FC = () => {
           filePath: exportSettings.outputPath,
         });
         console.log("导出完成，ZIP文件已保存到:", exportSettings.outputPath);
+        showSnackbar(
+          `导出完成！文件已保存到: ${exportSettings.outputPath}`,
+          "success",
+        );
       } catch (error) {
         console.error("保存文件失败:", error);
-        alert(`保存路径无效，请重新选择保存位置。\n错误信息: ${error}`);
+        showSnackbar(`保存失败: ${error}`, "error");
         // 清除无效路径
         handleExportSettingsChange({ outputPath: "" });
         // 如果保存失败，回退到浏览器下载
         saveAs(zipBlob, fileName);
         console.log("回退到浏览器下载，ZIP文件已下载:", fileName);
+        showSnackbar("已回退到浏览器下载", "info");
       }
     } else {
       // 浏览器环境或未设置路径，使用默认下载
       saveAs(zipBlob, fileName);
       console.log("导出完成，ZIP文件已下载:", fileName);
+      showSnackbar(`导出完成！文件已下载: ${fileName}`, "success");
     }
-  }, [images, selectedImageIndex, watermarkPosition]);
+  }, [
+    images,
+    watermarkText,
+    watermarkColor,
+    watermarkOpacity,
+    watermarkFontSize,
+    watermarkType,
+    watermarkImageUrl,
+    exportSettings.outputPath,
+    validateExportPath,
+    handleExportSettingsChange,
+  ]);
 
   // 删除图片
   const handleDeleteImage = useCallback(
@@ -708,6 +833,22 @@ const WatermarkEditor: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Snackbar 提示 */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbarSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

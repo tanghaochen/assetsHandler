@@ -1,8 +1,9 @@
-import { app, BrowserWindow, shell, ipcMain } from "electron";
+import { app, BrowserWindow, shell, ipcMain, dialog } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
+import fs from "node:fs";
 import { update } from "./update";
 
 const require = createRequire(import.meta.url);
@@ -49,6 +50,9 @@ async function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC, "favicon.ico"),
     webPreferences: {
       preload,
+      // 启用文件拖拽支持
+      webSecurity: false,
+      allowRunningInsecureContent: true,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
       // nodeIntegration: true,
 
@@ -56,6 +60,61 @@ async function createWindow() {
       // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
       // contextIsolation: false,
     },
+  });
+
+  // 启用文件拖拽
+  win.webContents.on("will-navigate", (event, navigationUrl) => {
+    const parsedUrl = new URL(navigationUrl);
+
+    // 如果是文件协议，阻止导航
+    if (parsedUrl.protocol === "file:") {
+      event.preventDefault();
+    }
+  });
+
+  // 处理文件拖拽
+  win.webContents.on("dom-ready", () => {
+    win?.webContents.executeJavaScript(`
+      // 移除可能存在的旧事件监听器
+      document.removeEventListener('dragover', window._dragOverHandler);
+      document.removeEventListener('drop', window._dropHandler);
+      
+      // 创建事件处理函数
+      window._dragOverHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+      };
+      
+      window._dropHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const files = Array.from(e.dataTransfer.files);
+        console.log('Electron drop event, files:', files);
+        
+        if (files.length > 0) {
+          // 在 Electron 环境中，文件对象应该有 path 属性
+          const filePaths = files.map(f => f.path || f.name);
+          console.log('拖拽文件路径:', filePaths);
+          
+          // 触发自定义事件，传递文件对象和路径
+          const event = new CustomEvent('electron-file-drop', {
+            detail: { 
+              files: files,
+              filePaths: filePaths
+            }
+          });
+          document.dispatchEvent(event);
+        }
+      };
+      
+      // 添加事件监听器
+      document.addEventListener('dragover', window._dragOverHandler);
+      document.addEventListener('drop', window._dropHandler);
+      
+      console.log('Electron file drop handlers installed');
+    `);
   });
 
   if (VITE_DEV_SERVER_URL) {
@@ -122,3 +181,38 @@ ipcMain.handle("open-win", (_, arg) => {
     childWindow.loadFile(indexHtml, { hash: arg });
   }
 });
+
+// 处理文件拖拽
+ipcMain.handle("handle-file-drop", (_, filePaths: string[]) => {
+  console.log("收到拖拽文件:", filePaths);
+  // 这里可以添加文件处理逻辑
+  return filePaths;
+});
+
+// 选择目录
+ipcMain.handle("select-directory", async () => {
+  const result = await dialog.showOpenDialog(win!, {
+    properties: ["openDirectory"],
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+// 保存文件
+ipcMain.handle(
+  "save-file",
+  async (
+    _,
+    data: { data: ArrayBuffer; fileName: string; filePath: string },
+  ) => {
+    const { data: fileData, fileName, filePath } = data;
+    const fullPath = path.join(filePath, fileName);
+
+    try {
+      await fs.promises.writeFile(fullPath, Buffer.from(fileData));
+      return { success: true, path: fullPath };
+    } catch (error) {
+      console.error("保存文件失败:", error);
+      throw error;
+    }
+  },
+);

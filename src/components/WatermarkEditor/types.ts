@@ -46,6 +46,8 @@ declare global {
         fileName: string;
         filePath: string;
       }) => Promise<void>;
+      handleFileDrop: (filePaths: string[]) => Promise<string[]>;
+      isElectron?: boolean;
     };
   }
 }
