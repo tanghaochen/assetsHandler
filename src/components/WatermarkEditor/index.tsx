@@ -103,6 +103,9 @@ const WatermarkEditor: React.FC = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState<
     "success" | "error" | "info" | "warning"
   >("success");
+  const [slideDirection, setSlideDirection] = useState<"left" | "right" | null>(
+    null,
+  );
 
   const previewRef = useRef<HTMLDivElement>(null);
   const watermarkRef = useRef<HTMLDivElement>(null);
@@ -132,6 +135,7 @@ const WatermarkEditor: React.FC = () => {
             selectedImageIndex <= 0
               ? images.length - 1
               : selectedImageIndex - 1;
+          setSlideDirection("left");
           setSelectedImageIndex(prevIndex);
           // 加载对应图片的水印位置
           if (images[prevIndex]) {
@@ -145,6 +149,7 @@ const WatermarkEditor: React.FC = () => {
             selectedImageIndex >= images.length - 1
               ? 0
               : selectedImageIndex + 1;
+          setSlideDirection("right");
           setSelectedImageIndex(nextIndex);
           // 加载对应图片的水印位置
           if (images[nextIndex]) {
@@ -195,6 +200,16 @@ const WatermarkEditor: React.FC = () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [handleKeyDown]);
+
+  // 重置滑动方向
+  useEffect(() => {
+    if (slideDirection) {
+      const timer = setTimeout(() => {
+        setSlideDirection(null);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [slideDirection]);
 
   // 处理文件拖拽
   const handleFileDrop = useCallback(
@@ -371,13 +386,20 @@ const WatermarkEditor: React.FC = () => {
         `选择图片 ${index}，当前水印位置:`,
         images[index]?.watermarkPosition,
       );
+
+      // 确定滑动方向
+      if (selectedImageIndex !== -1) {
+        const direction = index > selectedImageIndex ? "right" : "left";
+        setSlideDirection(direction);
+      }
+
       setSelectedImageIndex(index);
       if (images[index]) {
         // 加载该图片的独立水印位置设置
         setWatermarkPosition({ ...images[index].watermarkPosition });
       }
     },
-    [images],
+    [images, selectedImageIndex],
   );
 
   // 处理水印位置更新
@@ -886,6 +908,7 @@ const WatermarkEditor: React.FC = () => {
             watermarkPosition={watermarkPosition}
             onWatermarkUpdate={handleWatermarkUpdate}
             watermarkRef={watermarkRef}
+            slideDirection={slideDirection}
           />
         </div>
 

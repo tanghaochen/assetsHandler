@@ -13,6 +13,7 @@ interface PreviewAreaProps {
   watermarkPosition: WatermarkPosition;
   onWatermarkUpdate: (position: WatermarkPosition) => void;
   watermarkRef: React.RefObject<HTMLDivElement>;
+  slideDirection?: "left" | "right" | null;
 }
 
 const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
@@ -28,15 +29,23 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       watermarkPosition,
       onWatermarkUpdate,
       watermarkRef,
+      slideDirection,
     },
     ref,
   ) => {
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
     const [showMoveable, setShowMoveable] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
+    const [animationKey, setAnimationKey] = useState(0);
+    const [previousImageId, setPreviousImageId] = useState<string | null>(null);
 
     useEffect(() => {
       if (image) {
+        // 触发动画
+        setIsAnimating(true);
+        setAnimationKey((prev) => prev + 1);
+
         const img = new window.Image();
         img.onload = () => {
           setImageSize({ width: img.width, height: img.height });
@@ -45,8 +54,16 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             width: img.width,
             height: img.height,
           });
+
+          // 动画结束后重置状态
+          setTimeout(() => {
+            setIsAnimating(false);
+          }, 500);
         };
         img.src = image.url;
+
+        // 更新前一个图片ID
+        setPreviousImageId(image.id.toString());
       } else {
         setShowMoveable(false);
       }
@@ -241,7 +258,10 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
         <div className="preview-container">
           <div
-            className="image-container"
+            className={`image-container ${
+              isAnimating ? `slide-${slideDirection}` : ""
+            }`}
+            key={animationKey}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             style={{
