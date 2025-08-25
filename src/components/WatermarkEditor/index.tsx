@@ -12,6 +12,7 @@ const WatermarkEditor: React.FC = () => {
       const savedSettings = localStorage.getItem("watermarkEditorSettings");
       if (savedSettings) {
         const settings = JSON.parse(savedSettings);
+        console.log("从localStorage加载的设置:", settings);
         return {
           watermarkText: settings.watermarkText || "Watermark",
           watermarkColor: settings.watermarkColor || "#ffffff",
@@ -60,6 +61,7 @@ const WatermarkEditor: React.FC = () => {
   const saveSettingsToStorage = (settings: any) => {
     try {
       localStorage.setItem("watermarkEditorSettings", JSON.stringify(settings));
+      console.log("保存设置到localStorage:", settings);
     } catch (error) {
       console.error("保存设置失败:", error);
     }
@@ -204,14 +206,47 @@ const WatermarkEditor: React.FC = () => {
       setExportSettings((prev) => {
         const newSettings = { ...prev, ...settings };
 
-        // 保存设置到localStorage
-        setTimeout(() => saveAllSettings(), 0);
+        // 立刻保存整套设置到 localStorage，避免读取到旧的 state
+        const mergedAllSettings = {
+          watermarkText,
+          watermarkColor,
+          watermarkOpacity,
+          watermarkFontSize,
+          watermarkType,
+          watermarkImageUrl,
+          exportSettings: newSettings,
+          watermarkPosition,
+        };
+        saveSettingsToStorage(mergedAllSettings);
 
         return newSettings;
       });
     },
-    [saveAllSettings],
+    [
+      watermarkText,
+      watermarkColor,
+      watermarkOpacity,
+      watermarkFontSize,
+      watermarkType,
+      watermarkImageUrl,
+      watermarkPosition,
+    ],
   );
+
+  // 验证导出路径
+  const validateExportPath = useCallback((path: string): boolean => {
+    if (!path) return true; // 空路径是允许的（使用默认下载）
+
+    // 在Electron环境中验证路径
+    if (window.electronAPI) {
+      // 这里可以添加更复杂的路径验证逻辑
+      // 目前简单检查是否包含路径分隔符
+      return path.includes("/") || path.includes("\\");
+    }
+
+    // 浏览器环境中，路径验证相对简单
+    return true;
+  }, []);
 
   // 包装函数：处理水印文本更新
   const handleWatermarkTextChange = useCallback(
@@ -516,6 +551,15 @@ const WatermarkEditor: React.FC = () => {
       now.getSeconds().toString().padStart(2, "0");
     const fileName = `watermarked_images_${timestamp}.zip`;
 
+    // 验证导出路径
+    if (
+      exportSettings.outputPath &&
+      !validateExportPath(exportSettings.outputPath)
+    ) {
+      alert("导出路径格式不正确，请重新输入或使用选择按钮选择路径");
+      return;
+    }
+
     // 如果有设置保存路径，使用Electron API保存到指定位置
     if (exportSettings.outputPath && window.electronAPI) {
       try {
@@ -527,6 +571,9 @@ const WatermarkEditor: React.FC = () => {
         console.log("导出完成，ZIP文件已保存到:", exportSettings.outputPath);
       } catch (error) {
         console.error("保存文件失败:", error);
+        alert(`保存路径无效，请重新选择保存位置。\n错误信息: ${error}`);
+        // 清除无效路径
+        handleExportSettingsChange({ outputPath: "" });
         // 如果保存失败，回退到浏览器下载
         saveAs(zipBlob, fileName);
         console.log("回退到浏览器下载，ZIP文件已下载:", fileName);
@@ -558,6 +605,44 @@ const WatermarkEditor: React.FC = () => {
   const handleClearAll = useCallback(() => {
     setImages([]);
     setSelectedImageIndex(-1);
+  }, []);
+
+  // 清除水印设置
+  const handleClearSettings = useCallback(() => {
+    // 重置为默认设置
+    const defaultSettings = {
+      watermarkText: "Watermark",
+      watermarkColor: "#ffffff",
+      watermarkOpacity: 1.0,
+      watermarkFontSize: 24,
+      watermarkType: "text" as "text" | "image",
+      watermarkImageUrl: "",
+      exportSettings: {
+        outputPath: "",
+      },
+      watermarkPosition: {
+        x: 0.5,
+        y: 0.5,
+        width: 0.3,
+        height: 0.1,
+        rotation: 0,
+      },
+    };
+
+    // 更新状态
+    setWatermarkText(defaultSettings.watermarkText);
+    setWatermarkColor(defaultSettings.watermarkColor);
+    setWatermarkOpacity(defaultSettings.watermarkOpacity);
+    setWatermarkFontSize(defaultSettings.watermarkFontSize);
+    setWatermarkType(defaultSettings.watermarkType);
+    setWatermarkImageUrl(defaultSettings.watermarkImageUrl);
+    setExportSettings(defaultSettings.exportSettings);
+    setWatermarkPosition(defaultSettings.watermarkPosition);
+
+    // 清除localStorage中的设置
+    localStorage.removeItem("watermarkEditorSettings");
+
+    console.log("水印设置已清除");
   }, []);
 
   const selectedImage =
@@ -618,6 +703,7 @@ const WatermarkEditor: React.FC = () => {
             onExportSettingsChange={handleExportSettingsChange}
             onApplyToAll={applyToAllImages}
             onExportAll={exportAllImages}
+            onClearSettings={handleClearSettings}
             imageCount={images.length}
           />
         </div>

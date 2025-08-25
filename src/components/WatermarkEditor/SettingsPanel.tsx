@@ -17,6 +17,7 @@ interface SettingsPanelProps {
   onExportSettingsChange: (settings: { outputPath?: string }) => void;
   onApplyToAll: () => void;
   onExportAll: () => void;
+  onClearSettings: () => void;
   imageCount: number;
 }
 
@@ -37,6 +38,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onExportSettingsChange,
   onApplyToAll,
   onExportAll,
+  onClearSettings,
   imageCount,
 }) => {
   const presetColors = [
@@ -231,169 +233,138 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div className="setting-group">
           <label className="setting-label">导出设置</label>
           <div className="export-settings">
-            {exportSettings.outputPath ? (
-              <div className="setting-item">
-                <label className="setting-sub-label">保存位置</label>
-                <div className="path-display">
-                  <span className="path-text">{exportSettings.outputPath}</span>
-                  <button
-                    className="change-path-btn"
-                    onClick={() => {
-                      onExportSettingsChange({ outputPath: "" });
-                    }}
-                  >
-                    更改
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="setting-item">
-                <label className="setting-sub-label">保存位置</label>
-                <div className="path-selector">
-                  <input
-                    type="text"
-                    value={exportSettings.outputPath}
-                    onChange={(e) =>
-                      onExportSettingsChange({ outputPath: e.target.value })
-                    }
-                    className="setting-input"
-                    placeholder="选择保存位置（可选）"
-                    readOnly
-                  />
-                  <button
-                    className="path-select-btn"
-                    onClick={() => {
-                      // 在Electron环境中使用原生文件选择器
-                      if (window.electronAPI) {
-                        window.electronAPI
-                          .selectDirectory()
-                          .then((path: string) => {
-                            if (path) {
-                              onExportSettingsChange({ outputPath: path });
-                            }
-                          });
-                      } else {
-                        // 浏览器环境下的备用方案
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.webkitdirectory = true;
-                        input.onchange = (e) => {
-                          const files = (e.target as HTMLInputElement).files;
-                          if (files && files.length > 0) {
-                            const path =
-                              files[0].webkitRelativePath.split("/")[0];
+            <div className="setting-item">
+              <label className="setting-sub-label">保存位置</label>
+              <div className="path-input-container">
+                <input
+                  type="text"
+                  value={exportSettings.outputPath}
+                  onChange={(e) =>
+                    onExportSettingsChange({ outputPath: e.target.value })
+                  }
+                  className="setting-input"
+                  placeholder="输入保存路径或点击选择按钮"
+                />
+                <button
+                  className="path-select-btn"
+                  onClick={() => {
+                    // 在Electron环境中使用原生文件选择器
+                    if (window.electronAPI) {
+                      window.electronAPI
+                        .selectDirectory()
+                        .then((path: string) => {
+                          if (path) {
                             onExportSettingsChange({ outputPath: path });
                           }
-                        };
-                        input.click();
-                      }
-                    }}
-                  >
-                    选择
-                  </button>
-                </div>
+                        });
+                    } else {
+                      // 浏览器环境下的备用方案
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.webkitdirectory = true;
+                      input.onchange = (e) => {
+                        const files = (e.target as HTMLInputElement).files;
+                        if (files && files.length > 0) {
+                          const path =
+                            files[0].webkitRelativePath.split("/")[0];
+                          onExportSettingsChange({ outputPath: path });
+                        }
+                      };
+                      input.click();
+                    }
+                  }}
+                >
+                  选择
+                </button>
               </div>
-            )}
-            <div className="setting-item">
-              <p className="export-info">
-                <span className="info-icon">ℹ️</span>
-                文件名将自动使用当前时间生成，格式：watermarked_images_YYYYMMDD_HHMMSS.zip
-              </p>
+              <div className="setting-item">
+                <p className="export-info">
+                  <span className="info-icon">ℹ️</span>
+                  文件名将自动使用当前时间生成，格式：watermarked_images_YYYYMMDD_HHMMSS.zip
+                </p>
+              </div>
+              <div className="setting-item">
+                <p className="path-tip">
+                  <span className="info-icon">💡</span>
+                  可以直接输入路径或点击"选择"按钮，路径错误时会在导出时提示重新选择
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 操作按钮 */}
-        <div className="action-buttons">
-          <div className="action-description">
-            <p className="text-xs text-gray-500 mb-2">
-              提示：每张图片可以单独设置水印位置，点击"应用到全部"将当前水印位置以百分比形式应用到所有图片
-            </p>
-          </div>
-          <button
-            onClick={onApplyToAll}
-            disabled={imageCount === 0}
-            className="action-btn apply-btn"
-            title="将当前水印位置以百分比形式应用到所有图片，适应不同尺寸"
-          >
-            <svg
-              className="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
-              />
-            </svg>
-            应用到全部 ({imageCount})
-          </button>
-
-          <button
-            onClick={onExportAll}
-            disabled={imageCount === 0}
-            className="action-btn export-btn"
-            title="导出所有带水印的图片"
-          >
-            <svg
-              className="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            导出所有图片
-          </button>
-        </div>
-
-        {/* 预览 */}
+        {/* 清除设置按钮 */}
         <div className="setting-group">
-          <label className="setting-label">预览效果</label>
-          <div className="watermark-preview">
-            {watermarkType === "text" && (
-              <div
-                className="preview-text"
-                style={{
-                  color: watermarkColor,
-                  opacity: watermarkOpacity,
-                  fontSize: `${watermarkFontSize}px`,
-                  textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
-                  fontWeight: "bold",
-                }}
+          <div className="setting-item">
+            <button
+              onClick={onClearSettings}
+              className="clear-settings-btn"
+              title="清除所有水印设置，恢复默认值"
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                {watermarkText || "预览文本"}
-              </div>
-            )}
-            {watermarkType === "image" && watermarkImageUrl && (
-              <div className="preview-image">
-                <img
-                  src={watermarkImageUrl}
-                  alt="水印图片预览"
-                  style={{
-                    opacity: watermarkOpacity,
-                    maxWidth: "100%",
-                    maxHeight: "60px",
-                    objectFit: "contain",
-                  }}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                 />
-              </div>
-            )}
-            {watermarkType === "image" && !watermarkImageUrl && (
-              <div className="preview-placeholder">
-                <span>请先上传水印图片</span>
-              </div>
-            )}
+              </svg>
+              清除水印设置
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* 固定在底部的操作按钮 */}
+      <div className="fixed-action-buttons">
+        <button
+          onClick={onApplyToAll}
+          disabled={imageCount === 0}
+          className="action-btn apply-btn"
+          title="将当前水印位置以百分比形式应用到所有图片，适应不同尺寸"
+        >
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+            />
+          </svg>
+          应用到全部 ({imageCount})
+        </button>
+
+        <button
+          onClick={onExportAll}
+          disabled={imageCount === 0}
+          className="action-btn export-btn"
+          title="导出所有带水印的图片"
+        >
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          导出所有图片
+        </button>
       </div>
     </div>
   );
