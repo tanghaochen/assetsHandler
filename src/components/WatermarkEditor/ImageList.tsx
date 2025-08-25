@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ImageItem } from "./types";
 import { color } from "html2canvas/dist/types/css/types/color";
-
+import CloseIcon from "@mui/icons-material/Close";
 interface ImageListProps {
   images: ImageItem[];
   selectedIndex: number;
@@ -181,6 +181,9 @@ const ImageList: React.FC<ImageListProps> = ({
       <div className="image-list-header">
         <h3 className="text-lg font-semibold text-gray-700">图片列表</h3>
         <div className="header-buttons">
+          {images.length > 0 && (
+            <div className="text-xs text-gray-500 mr-2">使用 ↑↓ 键切换图片</div>
+          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             className="add-btn"
@@ -270,23 +273,29 @@ const ImageList: React.FC<ImageListProps> = ({
                 }`}
                 onClick={() => onImageSelect(index)}
               >
-                <div className="image-thumbnail">
+                <div className="image-thumbnail relative">
                   <img
                     src={image.url}
                     alt={image.file.name}
                     className="w-full h-full object-cover"
                   />
                   <div className="image-overlay">
-                    <button
+                    <IconButton
+                      aria-label="delete"
+                      size="small"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteImage(index);
                       }}
-                      className="delete-btn"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                    {/* <button
+                      className="size-4 rounded-full absolute top-2 right-2 p-3 content-center flex items-center justify-center bg-white opacity-50"
                       title="删除图片"
                     >
-                      x
-                    </button>
+                      <div className="text-black flex-1 text-center">x</div>
+                    </button> */}
                   </div>
                 </div>
                 <div className="image-info">

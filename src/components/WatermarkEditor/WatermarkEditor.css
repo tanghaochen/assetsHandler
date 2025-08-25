@@ -152,16 +152,22 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.3);
   opacity: 0;
   transition: opacity 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .image-item:hover .image-overlay {
   opacity: 1;
+}
+
+/* 确保删除按钮可以点击 */
+.image-overlay .delete-btn {
+  pointer-events: auto;
 }
 
 .delete-btn {
@@ -175,11 +181,61 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 10;
+  min-width: 2rem;
+  min-height: 2rem;
 }
 
 .delete-btn:hover {
   background-color: #dc2626;
+  transform: scale(1.1);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.delete-btn:active {
+  transform: scale(0.95);
+}
+
+.delete-btn:focus {
+  outline: none;
+  opacity: 1 !important;
+}
+
+.delete-btn:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+
+.delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.delete-btn:disabled:hover {
+  background-color: #ef4444;
+  transform: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* 移动设备上的删除按钮样式 */
+@media (max-width: 768px) {
+  .delete-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+  }
+
+  .delete-btn svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
 }
 
 .delete-icon {

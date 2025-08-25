@@ -121,6 +121,69 @@ const WatermarkEditor: React.FC = () => {
     setSnackbarOpen(true);
   };
 
+  // 键盘事件处理
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      switch (event.key) {
+        case "ArrowUp":
+          if (images.length === 0) return;
+          event.preventDefault();
+          setSelectedImageIndex((prev) => {
+            if (prev <= 0) return images.length - 1;
+            return prev - 1;
+          });
+          break;
+        case "ArrowDown":
+          if (images.length === 0) return;
+          event.preventDefault();
+          setSelectedImageIndex((prev) => {
+            if (prev >= images.length - 1) return 0;
+            return prev + 1;
+          });
+          break;
+        case "s":
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            // 保存当前设置
+            const currentSettings = {
+              watermarkText,
+              watermarkColor,
+              watermarkOpacity,
+              watermarkFontSize,
+              watermarkType,
+              watermarkImageUrl,
+              exportSettings,
+              watermarkPosition,
+            };
+            saveSettingsToStorage(currentSettings);
+            showSnackbar("设置已保存", "success");
+          }
+          break;
+      }
+    },
+    [
+      images.length,
+      watermarkText,
+      watermarkColor,
+      watermarkOpacity,
+      watermarkFontSize,
+      watermarkType,
+      watermarkImageUrl,
+      exportSettings,
+      watermarkPosition,
+      saveSettingsToStorage,
+      showSnackbar,
+    ],
+  );
+
+  // 监听键盘事件
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
   // 处理文件拖拽
   const handleFileDrop = useCallback(
     (filePaths: string[]) => {
@@ -777,6 +840,11 @@ const WatermarkEditor: React.FC = () => {
     <div className="watermark-editor">
       <div className="editor-header">
         <h1 className="text-2xl font-bold text-gray-800">图片水印编辑器</h1>
+        {images.length > 0 && (
+          <div className="text-sm text-gray-600 mt-1">
+            键盘快捷键：↑↓ 切换图片 | Ctrl+S 保存设置
+          </div>
+        )}
       </div>
 
       <div className="editor-content">

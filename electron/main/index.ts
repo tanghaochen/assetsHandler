@@ -35,6 +35,19 @@ if (os.release().startsWith("6.1")) app.disableHardwareAcceleration();
 // Set application name for Windows 10+ notifications
 if (process.platform === "win32") app.setAppUserModelId(app.getName());
 
+// 生产环境安全设置
+if (!VITE_DEV_SERVER_URL) {
+  // 禁用远程内容
+  app.on('web-contents-created', (event, contents) => {
+    contents.on('will-navigate', (event, navigationUrl) => {
+      const parsedUrl = new URL(navigationUrl);
+      if (parsedUrl.origin !== 'file://') {
+        event.preventDefault();
+      }
+    });
+  });
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
@@ -48,6 +61,10 @@ async function createWindow() {
   win = new BrowserWindow({
     title: "Main window",
     icon: path.join(process.env.VITE_PUBLIC, "favicon.ico"),
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     webPreferences: {
       preload,
       // 启用文件拖拽支持
@@ -61,6 +78,40 @@ async function createWindow() {
       // contextIsolation: false,
     },
   });
+
+  // 窗口最大化（但不是全屏）
+  win.maximize();
+
+  // 隐藏菜单栏
+  win.setMenu(null);
+
+  // 禁用开发者工具（生产环境）
+  if (!VITE_DEV_SERVER_URL) {
+    win.webContents.on('devtools-opened', () => {
+      win?.webContents.closeDevTools();
+    });
+    
+    // 禁用右键菜单
+    win.webContents.on('context-menu', (e) => {
+      e.preventDefault();
+    });
+    
+    // 禁用键盘快捷键
+    win.webContents.on('before-input-event', (event, input) => {
+      // 禁用 F12 键
+      if (input.key === 'F12') {
+        event.preventDefault();
+      }
+      // 禁用 Ctrl+Shift+I
+      if (input.control && input.shift && input.key === 'I') {
+        event.preventDefault();
+      }
+      // 禁用 Ctrl+Shift+C
+      if (input.control && input.shift && input.key === 'C') {
+        event.preventDefault();
+      }
+    });
+  }
 
   // 启用文件拖拽
   win.webContents.on("will-navigate", (event, navigationUrl) => {
