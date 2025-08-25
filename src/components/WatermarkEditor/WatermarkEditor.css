@@ -165,49 +165,62 @@
   opacity: 1;
 }
 
-/* 确保删除按钮可以点击 */
-.image-overlay .delete-btn {
-  pointer-events: auto;
-}
-
-.delete-btn {
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  z-index: 10;
-  min-width: 2rem;
-  min-height: 2rem;
-}
-
-.delete-btn:hover {
-  background-color: #dc2626;
-  transform: scale(1.1);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.delete-btn:active {
-  transform: scale(0.95);
-}
-
-.delete-btn:focus {
-  outline: none;
+/* 确保删除按钮在悬停时显示 */
+.image-item:hover .image-overlay .MuiButton-root {
   opacity: 1 !important;
 }
 
-.delete-btn:focus-visible {
-  outline: 2px solid #ef4444;
-  outline-offset: 2px;
+/* 确保删除按钮可以点击 */
+.image-overlay .delete-btn,
+.image-overlay .MuiButton-root {
+  pointer-events: auto;
+}
+
+/* Material-UI 删除按钮样式 */
+.image-overlay .MuiButton-root {
+  position: absolute !important;
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  background-color: #ef4444 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  min-width: 1.5rem !important;
+  min-height: 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  z-index: 10 !important;
+  padding: 0 !important;
+  opacity: 0.3 !important;
+}
+
+.image-overlay .MuiButton-root:hover {
+  background-color: #dc2626 !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  opacity: 1 !important;
+}
+
+.image-overlay .MuiButton-root:active {
+  transform: scale(0.95) !important;
+}
+
+.image-overlay .MuiButton-root:focus {
+  outline: none !important;
+  opacity: 1 !important;
+}
+
+.image-overlay .MuiButton-root:focus-visible {
+  outline: 2px solid #ef4444 !important;
+  outline-offset: 2px !important;
 }
 
 .delete-btn:disabled {
@@ -235,6 +248,20 @@
   .delete-btn svg {
     width: 0.875rem;
     height: 0.875rem;
+  }
+
+  .image-overlay .MuiButton-root {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    min-width: 1.75rem !important;
+    min-height: 1.75rem !important;
+    top: 0.5rem !important;
+    right: 0.5rem !important;
+  }
+
+  .image-overlay .MuiButton-root svg {
+    width: 0.875rem !important;
+    height: 0.875rem !important;
   }
 }
 

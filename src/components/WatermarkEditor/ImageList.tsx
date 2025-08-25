@@ -1,7 +1,8 @@
 import React, { useRef, useState } from "react";
 import { ImageItem } from "./types";
 import { color } from "html2canvas/dist/types/css/types/color";
-import CloseIcon from "@mui/icons-material/Close";
+import Button from "@mui/material/Button";
+
 interface ImageListProps {
   images: ImageItem[];
   selectedIndex: number;
@@ -268,7 +269,7 @@ const ImageList: React.FC<ImageListProps> = ({
             {images.map((image, index) => (
               <div
                 key={image.id}
-                className={`image-item ${
+                className={`image-item group ${
                   selectedIndex === index ? "selected" : ""
                 }`}
                 onClick={() => onImageSelect(index)}
@@ -280,16 +281,28 @@ const ImageList: React.FC<ImageListProps> = ({
                     className="w-full h-full object-cover"
                   />
                   <div className="image-overlay">
-                    <IconButton
-                      aria-label="delete"
-                      size="small"
+                    <Button
+                      className="absolute top-2 right-2 w-6 h-6 min-w-6 min-h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-all duration-200 ease-in-out shadow-lg hover:shadow-xl transform hover:scale-110 opacity-30 hover:opacity-100 z-10"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteImage(index);
                       }}
+                      title="删除图片"
                     >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
+                      <svg
+                        className="w-3 h-3"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </Button>
                     {/* <button
                       className="size-4 rounded-full absolute top-2 right-2 p-3 content-center flex items-center justify-center bg-white opacity-50"
                       title="删除图片"
@@ -298,6 +311,7 @@ const ImageList: React.FC<ImageListProps> = ({
                     </button> */}
                   </div>
                 </div>
+
                 <div className="image-info">
                   <p className="image-name" title={image.file.name}>
                     {image.file.name.length > 20
