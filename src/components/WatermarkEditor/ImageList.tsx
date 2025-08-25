@@ -182,9 +182,6 @@ const ImageList: React.FC<ImageListProps> = ({
       <div className="image-list-header">
         <h3 className="text-lg font-semibold text-gray-700">图片列表</h3>
         <div className="header-buttons">
-          {images.length > 0 && (
-            <div className="text-xs text-gray-500 mr-2">使用 ↑↓ 键切换图片</div>
-          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             className="add-btn"

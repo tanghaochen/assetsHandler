@@ -277,18 +277,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   选择
                 </button>
               </div>
-              <div className="setting-item">
-                <p className="export-info">
-                  <span className="info-icon">ℹ️</span>
-                  文件名将自动使用当前时间生成，格式：watermarked_images_YYYYMMDD_HHMMSS.zip
-                </p>
-              </div>
-              <div className="setting-item">
-                <p className="path-tip">
-                  <span className="info-icon">💡</span>
-                  可以直接输入路径或点击"选择"按钮，路径错误时会在导出时提示重新选择
-                </p>
-              </div>
             </div>
           </div>
         </div>

@@ -314,12 +314,6 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             )}
           </div>
         </div>
-
-        <div className="preview-footer">
-          <p className="text-sm text-gray-500">
-            拖拽水印调整位置，拖拽边缘调整大小，拖拽旋转手柄调整角度
-          </p>
-        </div>
       </div>
     );
   },
