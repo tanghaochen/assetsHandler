@@ -120,24 +120,32 @@ const WatermarkEditor: React.FC = () => {
 
     const zip = new JSZip();
 
-    // 根据原文件名推断导出 mime 与后缀
+    // 根据原文件名推断导出 mime 与后缀，保持原格式
     const resolveMimeAndExt = (
       fileName: string,
     ): { mime: string; ext: string; bg: string | null } => {
       const match = /\.([a-zA-Z0-9]+)$/.exec(fileName);
       const ext = (match?.[1] || "png").toLowerCase();
-      // 默认透明背景；对于 jpeg 等不支持透明的格式使用白底
+
+      // 根据原文件扩展名确定格式，保持原格式不变
       switch (ext) {
         case "jpg":
         case "jpeg":
           return { mime: "image/jpeg", ext: ext, bg: "#ffffff" };
         case "png":
-          return { mime: "image/png", ext: "png", bg: null };
+          return { mime: "image/png", ext: ext, bg: null };
         case "webp":
-          return { mime: "image/webp", ext: "webp", bg: null };
+          return { mime: "image/webp", ext: ext, bg: null };
+        case "gif":
+          return { mime: "image/gif", ext: ext, bg: null };
+        case "bmp":
+          return { mime: "image/bmp", ext: ext, bg: "#ffffff" };
+        case "tiff":
+        case "tif":
+          return { mime: "image/tiff", ext: ext, bg: null };
         default:
-          // 其他格式统一转为 png 并修改后缀
-          return { mime: "image/png", ext: "png", bg: null };
+          // 对于不支持的格式，保持原扩展名但使用PNG格式
+          return { mime: "image/png", ext: ext, bg: null };
       }
     };
 
@@ -177,14 +185,145 @@ const WatermarkEditor: React.FC = () => {
         const { mime, ext, bg } = resolveMimeAndExt(images[i].file.name);
 
         try {
-          const canvas = await html2canvas(previewRef.current, {
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: bg, // jpeg 使用白底，其余保持透明
-            scale: 1, // 确保1:1比例
-            logging: false, // 关闭日志
-            removeContainer: false, // 不移除容器
-          });
+          // 获取图片实际尺寸
+          const getImageSize = (): Promise<{
+            width: number;
+            height: number;
+          }> => {
+            return new Promise((resolve) => {
+              const img = new Image();
+              img.onload = () => {
+                resolve({ width: img.width, height: img.height });
+              };
+              img.src = images[i].url;
+            });
+          };
+
+          const imageSize = await getImageSize();
+
+          // 创建一个临时的canvas来合成图片和水印
+          const tempCanvas = document.createElement("canvas");
+          const tempCtx = tempCanvas.getContext("2d");
+          tempCanvas.width = imageSize.width; // 保持原图尺寸
+          tempCanvas.height = imageSize.height;
+
+          if (tempCtx) {
+            // 设置背景色
+            if (bg) {
+              tempCtx.fillStyle = bg;
+              tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            }
+
+            // 绘制原图
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = images[i].url;
+            });
+
+            tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+
+            // 绘制水印
+            if (watermarkType === "text" && watermarkText) {
+              tempCtx.save();
+              tempCtx.globalAlpha = watermarkOpacity;
+              tempCtx.fillStyle = watermarkColor;
+              tempCtx.font = `bold ${watermarkFontSize}px Arial`; // 使用原始字体大小
+              tempCtx.textAlign = "center";
+              tempCtx.textBaseline = "middle";
+
+              // 计算水印位置（基于百分比）
+              const watermarkX = watermarkPosition.x * tempCanvas.width;
+              const watermarkY = watermarkPosition.y * tempCanvas.height;
+
+              // 计算水印尺寸
+              const watermarkWidth = watermarkPosition.width * tempCanvas.width;
+              const watermarkHeight =
+                watermarkPosition.height * tempCanvas.height;
+
+              // 应用旋转
+              if (watermarkPosition.rotation !== 0) {
+                tempCtx.translate(
+                  watermarkX + watermarkWidth / 2,
+                  watermarkY + watermarkHeight / 2,
+                );
+                tempCtx.rotate((watermarkPosition.rotation * Math.PI) / 180);
+                tempCtx.fillText(watermarkText, 0, 0);
+                tempCtx.setTransform(1, 0, 0, 1, 0, 0);
+              } else {
+                tempCtx.fillText(
+                  watermarkText,
+                  watermarkX + watermarkWidth / 2,
+                  watermarkY + watermarkHeight / 2,
+                );
+              }
+              tempCtx.restore();
+            } else if (watermarkType === "image" && watermarkImageUrl) {
+              // 绘制图片水印
+              const watermarkImg = new Image();
+              await new Promise((resolve, reject) => {
+                watermarkImg.onload = resolve;
+                watermarkImg.onerror = reject;
+                watermarkImg.src = watermarkImageUrl;
+              });
+
+              tempCtx.save();
+              tempCtx.globalAlpha = watermarkOpacity;
+
+              // 计算水印位置和尺寸
+              const watermarkWidth = watermarkPosition.width * tempCanvas.width;
+              const watermarkHeight =
+                watermarkPosition.height * tempCanvas.height;
+              const watermarkX = watermarkPosition.x * tempCanvas.width;
+              const watermarkY = watermarkPosition.y * tempCanvas.height;
+
+              // 应用旋转
+              if (watermarkPosition.rotation !== 0) {
+                tempCtx.translate(
+                  watermarkX + watermarkWidth / 2,
+                  watermarkY + watermarkHeight / 2,
+                );
+                tempCtx.rotate((watermarkPosition.rotation * Math.PI) / 180);
+                tempCtx.drawImage(
+                  watermarkImg,
+                  -watermarkWidth / 2,
+                  -watermarkHeight / 2,
+                  watermarkWidth,
+                  watermarkHeight,
+                );
+                tempCtx.setTransform(1, 0, 0, 1, 0, 0);
+              } else {
+                tempCtx.drawImage(
+                  watermarkImg,
+                  watermarkX,
+                  watermarkY,
+                  watermarkWidth,
+                  watermarkHeight,
+                );
+              }
+              tempCtx.restore();
+            }
+
+            // 将临时canvas转换为blob，设置合适的质量
+            const quality = mime === "image/jpeg" ? 0.9 : 1.0; // JPEG使用0.9质量，其他格式使用最高质量
+            const blob: Blob | null = await new Promise((resolve) =>
+              tempCanvas.toBlob((b) => resolve(b), mime, quality),
+            );
+
+            if (blob) {
+              const originalName = images[i].file.name.replace(/\.[^.]+$/, "");
+              const outName = `watermarked_${originalName}.${ext}`;
+              zip.file(outName, blob);
+              console.log(
+                `成功添加文件到ZIP: ${outName}, 大小: ${(
+                  blob.size /
+                  1024 /
+                  1024
+                ).toFixed(2)}MB`,
+              );
+            }
+          }
 
           // 恢复 moveable 控件的显示
           moveableElements.forEach((el, index) => {
@@ -194,19 +333,6 @@ const WatermarkEditor: React.FC = () => {
           // 恢复预览区域提示
           if (previewFooter) {
             (previewFooter as HTMLElement).style.display = "";
-          }
-
-          // 将 canvas 转为指定格式的 Blob 并添加到 zip
-          const blob: Blob | null = await new Promise((resolve) =>
-            canvas.toBlob((b) => resolve(b), mime),
-          );
-
-          if (blob) {
-            // 保留原文件名（加前缀），并确保后缀与导出格式一致
-            const originalName = images[i].file.name.replace(/\.[^.]+$/, "");
-            const outName = `watermarked_${originalName}.${ext}`;
-            zip.file(outName, blob);
-            console.log(`成功添加文件到ZIP: ${outName}`);
           }
         } catch (error) {
           console.error(`导出图片 ${images[i].file.name} 时出错:`, error);
