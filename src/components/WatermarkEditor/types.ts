@@ -35,19 +35,3 @@ export interface WatermarkConfig {
 export interface ExportSettings {
   outputPath: string;
 }
-
-// Electron API 类型定义
-declare global {
-  interface Window {
-    electronAPI?: {
-      selectDirectory: () => Promise<string>;
-      saveFile: (options: {
-        data: ArrayBuffer;
-        fileName: string;
-        filePath: string;
-      }) => Promise<void>;
-      handleFileDrop: (filePaths: string[]) => Promise<string[]>;
-      isElectron?: boolean;
-    };
-  }
-}

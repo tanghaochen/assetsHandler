@@ -54,6 +54,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -63,38 +64,50 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
   const outputPathRef = useRef<HTMLInputElement>(null);
   const copyFilePathRef = useRef<HTMLInputElement>(null);
 
-  // 启动时自动加载本地配置（静默，不提示），刷新/重启后回显
+  // 启动时自动加载本地配置（优先从主进程持久化，其次 localStorage）
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("batchProcessorConfig");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setConfig((prev) => ({
-          ...prev,
-          ...parsed,
-          copyFileEnabled:
-            typeof parsed.copyFileEnabled === "boolean"
-              ? parsed.copyFileEnabled
-              : String(parsed.copyFileEnabled).toLowerCase() === "true",
-          deleteOriginal:
-            typeof parsed.deleteOriginal === "boolean"
-              ? parsed.deleteOriginal
-              : String(parsed.deleteOriginal).toLowerCase() === "true",
-          extractNested:
-            typeof parsed.extractNested === "boolean"
-              ? parsed.extractNested
-              : String(parsed.extractNested).toLowerCase() === "true",
-        }));
-      }
+      const init = async () => {
+        let parsed: any | null = null;
+        try {
+          parsed = await window.electronAPI?.loadBatchConfig();
+        } catch {}
+        if (!parsed) {
+          const saved = localStorage.getItem("batchProcessorConfig");
+          if (saved) parsed = JSON.parse(saved);
+        }
+        if (parsed) {
+          setConfig((prev) => ({
+            ...prev,
+            ...(parsed || {}),
+            copyFileEnabled:
+              typeof parsed.copyFileEnabled === "boolean"
+                ? parsed.copyFileEnabled
+                : String(parsed.copyFileEnabled).toLowerCase() === "true",
+            deleteOriginal:
+              typeof parsed.deleteOriginal === "boolean"
+                ? parsed.deleteOriginal
+                : String(parsed.deleteOriginal).toLowerCase() === "true",
+            extractNested:
+              typeof parsed.extractNested === "boolean"
+                ? parsed.extractNested
+                : String(parsed.extractNested).toLowerCase() === "true",
+          }));
+        }
+        setIsLoaded(true);
+      };
+      void init();
     } catch {}
   }, []);
 
-  // 自动持久化主要配置项，用户修改后实时保存
+  // 自动持久化主要配置项，用户修改后实时保存（主进程 + localStorage 双写）
   useEffect(() => {
     try {
+      if (!isLoaded) return;
       localStorage.setItem("batchProcessorConfig", JSON.stringify(config));
+      window.electronAPI?.saveBatchConfig(config);
     } catch {}
-  }, [config]);
+  }, [config, isLoaded]);
 
   const handleConfigChange = (field: keyof BatchConfig, value: any) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
@@ -163,13 +176,15 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
 
     try {
       // 设置批处理进度监听
-      window.electronAPI?.onBatchProgress((data) => {
-        if (data.type === "output") {
-          addLog(data.message.trim());
-        } else if (data.type === "error") {
-          addLog(`错误: ${data.message.trim()}`);
-        }
-      });
+      window.electronAPI?.onBatchProgress(
+        (data: { type: "output" | "error"; message: string }) => {
+          if (data.type === "output") {
+            addLog(data.message.trim());
+          } else if (data.type === "error") {
+            addLog(`错误: ${data.message.trim()}`);
+          }
+        },
+      );
 
       // 调用测试脚本
       const result = await window.electronAPI?.testBatchScript({
@@ -183,15 +198,15 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
         extractNested: config.extractNested,
       });
 
-      if (result.success) {
+      if (result && result.success) {
         setSuccess("测试完成！");
         addLog("测试脚本执行成功");
         setProgress(100);
       } else {
-        setError(result.message || "测试失败");
-        addLog(`测试失败: ${result.message}`);
-        if (result.error) {
-          addLog(`错误详情: ${result.error}`);
+        setError(result?.message || "测试失败");
+        addLog(`测试失败: ${result?.message}`);
+        if (result?.error) {
+          addLog(`错误详情: ${result?.error}`);
         }
       }
     } catch (err) {
@@ -222,13 +237,15 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
 
     try {
       // 设置批处理进度监听
-      window.electronAPI?.onBatchProgress((data) => {
-        if (data.type === "output") {
-          addLog(data.message.trim());
-        } else if (data.type === "error") {
-          addLog(`错误: ${data.message.trim()}`);
-        }
-      });
+      window.electronAPI?.onBatchProgress(
+        (data: { type: "output" | "error"; message: string }) => {
+          if (data.type === "output") {
+            addLog(data.message.trim());
+          } else if (data.type === "error") {
+            addLog(`错误: ${data.message.trim()}`);
+          }
+        },
+      );
 
       // 调用实际的批处理脚本
       const result = await window.electronAPI?.executeBatchScript({
@@ -242,15 +259,15 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
         extractNested: config.extractNested,
       });
 
-      if (result.success) {
+      if (result && result.success) {
         setSuccess("批处理完成！");
         addLog("所有文件处理完成");
         setProgress(100);
       } else {
-        setError(result.message || "批处理失败");
-        addLog(`批处理失败: ${result.message}`);
-        if (result.error) {
-          addLog(`错误详情: ${result.error}`);
+        setError(result?.message || "批处理失败");
+        addLog(`批处理失败: ${result?.message}`);
+        if (result?.error) {
+          addLog(`错误详情: ${result?.error}`);
         }
       }
     } catch (err) {

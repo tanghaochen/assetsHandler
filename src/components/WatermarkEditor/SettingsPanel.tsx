@@ -252,7 +252,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     if (window.electronAPI) {
                       window.electronAPI
                         .selectDirectory()
-                        .then((path: string) => {
+                        .then((path: string | null) => {
                           if (path) {
                             onExportSettingsChange({ outputPath: path });
                           }

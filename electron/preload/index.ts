@@ -47,6 +47,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("test-batch-script", config),
   getSystemInfo: () => ipcRenderer.invoke("get-system-info"),
 
+  // 批处理配置持久化
+  loadBatchConfig: () => ipcRenderer.invoke("load-batch-config"),
+  saveBatchConfig: (data: any) => ipcRenderer.invoke("save-batch-config", data),
+
   // 批处理进度监听
   onBatchProgress: (callback: (data: any) => void) => {
     ipcRenderer.on("batch-progress", (event, data) => callback(data));

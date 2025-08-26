@@ -363,6 +363,39 @@ ipcMain.handle("get-system-info", async () => {
   };
 });
 
+// 批处理配置持久化（保存/加载）
+ipcMain.handle("load-batch-config", async () => {
+  try {
+    const cfgPath = path.join(app.getPath("userData"), "batch-config.json");
+    if (!fs.existsSync(cfgPath)) return null;
+    const raw = await fs.promises.readFile(cfgPath, "utf-8");
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("加载批处理配置失败:", e);
+    return null;
+  }
+});
+
+ipcMain.handle("save-batch-config", async (_event, data) => {
+  try {
+    const cfgDir = app.getPath("userData");
+    const cfgPath = path.join(cfgDir, "batch-config.json");
+    await fs.promises.mkdir(cfgDir, { recursive: true });
+    await fs.promises.writeFile(
+      cfgPath,
+      JSON.stringify(data ?? {}, null, 2),
+      "utf-8",
+    );
+    return { success: true };
+  } catch (e) {
+    console.error("保存批处理配置失败:", e);
+    return {
+      success: false,
+      message: e instanceof Error ? e.message : String(e),
+    };
+  }
+});
+
 // 测试批处理脚本执行
 ipcMain.handle("test-batch-script", async (event, config) => {
   try {
