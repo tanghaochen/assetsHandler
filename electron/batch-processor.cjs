@@ -5,13 +5,21 @@ const os = require("os");
 
 class BatchProcessor {
   constructor(config) {
+    const toBoolean = (value) => {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "string") return value.toLowerCase() === "true";
+      if (typeof value === "number") return value === 1;
+      return Boolean(value);
+    };
+
     this.config = {
       password: config.password || "3y@Ef!YzJNmY",
       suffix: config.suffix || "_installguider.com",
       copyFilePath: config.copyFilePath || "",
-      copyFileEnabled: config.copyFileEnabled || false,
-      deleteOriginal: config.deleteOriginal || true,
-      extractNested: config.extractNested || true,
+      copyFileEnabled: toBoolean(config.copyFileEnabled ?? false),
+      // 默认不删除
+      deleteOriginal: toBoolean(config.deleteOriginal ?? false),
+      extractNested: toBoolean(config.extractNested ?? true),
       inputPath: config.inputPath || "",
       outputPath: config.outputPath || config.inputPath || "",
     };

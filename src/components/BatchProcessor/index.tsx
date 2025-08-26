@@ -49,7 +49,7 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
     copyFileEnabled: true,
     inputPath: "",
     outputPath: "",
-    deleteOriginal: true,
+    deleteOriginal: false,
     extractNested: true,
   });
 
@@ -246,7 +246,24 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
     try {
       const saved = localStorage.getItem("batchProcessorConfig");
       if (saved) {
-        setConfig(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        setConfig((prev) => ({
+          ...prev,
+          ...parsed,
+          // 强制布尔值，避免字符串/数字导致误删
+          copyFileEnabled:
+            typeof parsed.copyFileEnabled === "boolean"
+              ? parsed.copyFileEnabled
+              : String(parsed.copyFileEnabled).toLowerCase() === "true",
+          deleteOriginal:
+            typeof parsed.deleteOriginal === "boolean"
+              ? parsed.deleteOriginal
+              : String(parsed.deleteOriginal).toLowerCase() === "true",
+          extractNested:
+            typeof parsed.extractNested === "boolean"
+              ? parsed.extractNested
+              : String(parsed.extractNested).toLowerCase() === "true",
+        }));
         setSuccess("配置已加载");
       }
     } catch (err) {

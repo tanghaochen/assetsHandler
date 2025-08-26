@@ -128,13 +128,17 @@ const WatermarkEditor: React.FC = () => {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       switch (event.key) {
-        case "ArrowUp":
+        case "ArrowLeft":
           if (images.length === 0) return;
           event.preventDefault();
-          const prevIndex =
-            selectedImageIndex <= 0
-              ? images.length - 1
-              : selectedImageIndex - 1;
+
+          // 检查是否已经是第一张图片
+          if (selectedImageIndex <= 0) {
+            alert("已经是第一张图片了！");
+            return;
+          }
+
+          const prevIndex = selectedImageIndex - 1;
           setSlideDirection("left");
           setSelectedImageIndex(prevIndex);
           // 加载对应图片的水印位置
@@ -142,13 +146,17 @@ const WatermarkEditor: React.FC = () => {
             setWatermarkPosition({ ...images[prevIndex].watermarkPosition });
           }
           break;
-        case "ArrowDown":
+        case "ArrowRight":
           if (images.length === 0) return;
           event.preventDefault();
-          const nextIndex =
-            selectedImageIndex >= images.length - 1
-              ? 0
-              : selectedImageIndex + 1;
+
+          // 检查是否已经是最后一张图片
+          if (selectedImageIndex >= images.length - 1) {
+            alert("已经是最后一张图片了！");
+            return;
+          }
+
+          const nextIndex = selectedImageIndex + 1;
           setSlideDirection("right");
           setSelectedImageIndex(nextIndex);
           // 加载对应图片的水印位置

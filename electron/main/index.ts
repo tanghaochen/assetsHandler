@@ -7,11 +7,22 @@ import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { update } from "./update";
 
-const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// 导入批处理处理器
-const BatchProcessor = require("./batch-processor.cjs");
+// 确保 APP_ROOT 先被设置并提供后备路径
+const defaultAppRoot = path.join(__dirname, "../..");
+process.env.APP_ROOT = process.env.APP_ROOT || defaultAppRoot;
+
+// 使用 CommonJS 方式引入，避免类型声明要求
+const require = createRequire(import.meta.url);
+const isDev = !!process.env.VITE_DEV_SERVER_URL;
+const appRoot = process.env.APP_ROOT as string;
+const batchProcessorPath = isDev
+  ? path.join(appRoot, "electron/batch-processor.cjs")
+  : path.join(__dirname, "batch-processor.cjs");
+const BatchProcessor = require(batchProcessorPath);
+
+// 批处理处理器已作为 TypeScript 模块引入，随主进程一起打包
 
 // The built directory structure
 //
@@ -23,7 +34,7 @@ const BatchProcessor = require("./batch-processor.cjs");
 // ├─┬ dist
 // │ └── index.html    > Electron-Renderer
 //
-process.env.APP_ROOT = path.join(__dirname, "../..");
+// 此处 APP_ROOT 已在上方初始化
 
 export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
@@ -311,7 +322,7 @@ ipcMain.handle("execute-batch-script", async (event, config) => {
     });
 
     // 设置日志回调
-    processor.setLogCallback((data) => {
+    processor.setLogCallback((data: any) => {
       event.sender.send("batch-progress", data);
     });
 

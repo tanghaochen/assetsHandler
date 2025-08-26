@@ -344,15 +344,15 @@
 
 /* 预览区域滑动动画 */
 .image-container {
-  transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
 }
 
 .image-container.slide-left {
-  animation: slideInLeft 0.5s ease-in-out;
+  animation: slideInLeft 0.2s ease-in-out;
 }
 
 .image-container.slide-right {
-  animation: slideInRight 0.5s ease-in-out;
+  animation: slideInRight 0.2s ease-in-out;
 }
 
 @keyframes slideInLeft {

@@ -5,15 +5,24 @@ const os = require("os");
 
 class BatchProcessor {
   constructor(config) {
+    // 统一布尔值（兼容 'true'/'false' 字符串与数字 1/0）
+    const toBoolean = (value) => {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "string") return value.toLowerCase() === "true";
+      if (typeof value === "number") return value === 1;
+      return Boolean(value);
+    };
+
     this.config = {
-      password: config.password || "3y@Ef!YzJNmY",
-      suffix: config.suffix || "_installguider.com",
-      copyFilePath: config.copyFilePath || "",
-      copyFileEnabled: config.copyFileEnabled || false,
-      deleteOriginal: config.deleteOriginal || true,
-      extractNested: config.extractNested || true,
-      inputPath: config.inputPath || "",
-      outputPath: config.outputPath || config.inputPath || "",
+      password: config.password ?? "3y@Ef!YzJNmY",
+      suffix: config.suffix ?? "_installguider.com",
+      copyFilePath: config.copyFilePath ?? "",
+      copyFileEnabled: toBoolean(config.copyFileEnabled ?? false),
+      // 默认不删除，只有明确为 true 才删除
+      deleteOriginal: toBoolean(config.deleteOriginal ?? false),
+      extractNested: toBoolean(config.extractNested ?? true),
+      inputPath: config.inputPath ?? "",
+      outputPath: config.outputPath ?? config.inputPath ?? "",
     };
 
     this.logCallback = null;
@@ -186,13 +195,9 @@ class BatchProcessor {
       await this.copyFile(this.config.copyFilePath, copyTargetPath);
     }
 
-    // 如果需要删除原始文件
-    if (this.config.deleteOriginal) {
+    // 仅当明确勾选删除原始文件时才删除；未勾选则保持原文件不变
+    if (this.config.deleteOriginal === true) {
       await this.deleteFile(zipPath);
-    } else {
-      // 重命名原始文件
-      const newZipPath = zipPath + this.config.suffix;
-      await this.renameFile(zipPath, newZipPath);
     }
 
     // 如果需要解压嵌套ZIP文件
