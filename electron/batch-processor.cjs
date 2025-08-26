@@ -317,12 +317,10 @@ class BatchProcessor {
       const zipName = path.basename(zipPath, ".zip");
       const zipDir = path.dirname(zipPath);
 
-      // 确定输出目录
-      const outputDir =
-        this.config.outputPath &&
-        this.config.outputPath !== this.config.inputPath
-          ? this.config.outputPath
-          : zipDir;
+      // 确定输出目录：若配置了 outputPath，则始终使用之；否则使用源同级目录
+      const outputDir = this.config.outputPath
+        ? this.config.outputPath
+        : zipDir;
 
       // 创建临时解压目录（带后缀）
       const tempExtractDir = path.join(outputDir, zipName + this.config.suffix);
@@ -353,21 +351,11 @@ class BatchProcessor {
         return false;
       }
 
-      // 如果需要解压嵌套ZIP文件
-      if (this.config.extractNested) {
-        this.log(`查找嵌套ZIP文件: ${tempExtractDir}`);
-        await this.processNestedZips(tempExtractDir);
-      }
+      // 不再处理任何嵌套压缩，只保留首次解压结果
 
-      // 查找目标目录
-      this.log(`开始分析目录结构...`);
-      const targetDir = await this.findTargetDirectory(tempExtractDir, zipName);
-      if (!targetDir) {
-        this.error(`未找到目标目录: ${tempExtractDir}`);
-        return false;
-      }
-
-      this.log(`找到目标目录: ${targetDir}`);
+      // 直接使用首次解压得到的目录作为压缩源目录，不再向下查找
+      const targetDir = tempExtractDir;
+      this.log(`使用解压目录作为压缩源: ${targetDir}`);
 
       // 如果需要拷贝文件
       if (this.config.copyFileEnabled && this.config.copyFilePath) {

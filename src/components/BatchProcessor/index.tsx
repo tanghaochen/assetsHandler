@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Button,
   TextField,
@@ -62,6 +62,39 @@ const BatchProcessor: React.FC<BatchProcessorProps> = ({ onBack }) => {
   const inputPathRef = useRef<HTMLInputElement>(null);
   const outputPathRef = useRef<HTMLInputElement>(null);
   const copyFilePathRef = useRef<HTMLInputElement>(null);
+
+  // 启动时自动加载本地配置（静默，不提示），刷新/重启后回显
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("batchProcessorConfig");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setConfig((prev) => ({
+          ...prev,
+          ...parsed,
+          copyFileEnabled:
+            typeof parsed.copyFileEnabled === "boolean"
+              ? parsed.copyFileEnabled
+              : String(parsed.copyFileEnabled).toLowerCase() === "true",
+          deleteOriginal:
+            typeof parsed.deleteOriginal === "boolean"
+              ? parsed.deleteOriginal
+              : String(parsed.deleteOriginal).toLowerCase() === "true",
+          extractNested:
+            typeof parsed.extractNested === "boolean"
+              ? parsed.extractNested
+              : String(parsed.extractNested).toLowerCase() === "true",
+        }));
+      }
+    } catch {}
+  }, []);
+
+  // 自动持久化主要配置项，用户修改后实时保存
+  useEffect(() => {
+    try {
+      localStorage.setItem("batchProcessorConfig", JSON.stringify(config));
+    } catch {}
+  }, [config]);
 
   const handleConfigChange = (field: keyof BatchConfig, value: any) => {
     setConfig((prev) => ({ ...prev, [field]: value }));

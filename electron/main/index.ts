@@ -1,4 +1,11 @@
-import { app, BrowserWindow, shell, ipcMain, dialog } from "electron";
+import {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  dialog,
+  Notification,
+} from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -328,6 +335,14 @@ ipcMain.handle("execute-batch-script", async (event, config) => {
 
     // 执行批处理
     const result = await processor.process();
+    try {
+      const title = result.success ? "批处理完成" : "批处理失败";
+      const body =
+        result.message || (result.success ? "所有任务已完成" : "请查看日志");
+      new Notification({ title, body, silent: false }).show();
+    } catch (e) {
+      console.error("系统通知失败:", e);
+    }
     return result;
   } catch (error) {
     console.error("批处理执行失败:", error);
