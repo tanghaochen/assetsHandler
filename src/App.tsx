@@ -34,7 +34,7 @@ const App: React.FC = () => {
   if (currentView === "watermark") {
     return (
       <div className="app">
-        <WatermarkEditor />
+        <WatermarkEditor onBack={handleBackToHome} />
         <Snackbar
           open={snackbarOpen}
           autoHideDuration={6000}

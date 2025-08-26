@@ -6,7 +6,11 @@ import SettingsPanel from "./SettingsPanel";
 import { ImageItem, WatermarkPosition } from "./types";
 import "./WatermarkEditor.css";
 
-const WatermarkEditor: React.FC = () => {
+type WatermarkEditorProps = {
+  onBack?: () => void;
+};
+
+const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
   // 从localStorage加载保存的设置
   const loadSettingsFromStorage = () => {
     try {
@@ -881,7 +885,14 @@ const WatermarkEditor: React.FC = () => {
   return (
     <div className="watermark-editor">
       <div className="editor-header">
-        <h1 className="text-2xl font-bold text-gray-800">图片水印编辑器</h1>
+        <div className="header-bar">
+          <h1 className="text-2xl font-bold text-gray-800">图片水印编辑器</h1>
+          {onBack && (
+            <button className="back-btn" onClick={onBack}>
+              返回首页
+            </button>
+          )}
+        </div>
         {images.length > 0 && (
           <div className="text-sm text-gray-600 mt-1">
             键盘快捷键：↑↓ 切换图片 | Ctrl+S 保存设置
