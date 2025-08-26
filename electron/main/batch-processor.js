@@ -72,13 +72,36 @@ class BatchProcessor {
   }
 
   async findZipFiles(directory) {
+    // 自动查找：当前目录与第一层子目录中的 .zip，不做更深层递归
     try {
-      const files = await fs.promises.readdir(directory);
-      return files.filter(
-        (file) =>
-          file.toLowerCase().endsWith(".zip") &&
-          fs.statSync(path.join(directory, file)).isFile(),
-      );
+      const entries = await fs.promises.readdir(directory);
+      const result = [];
+
+      for (const entry of entries) {
+        const fullPath = path.join(directory, entry);
+        const stat = await fs.promises.stat(fullPath);
+
+        if (stat.isFile() && entry.toLowerCase().endsWith(".zip")) {
+          // 顶层 ZIP：使用文件名（与现有下游逻辑兼容）
+          result.push(entry);
+        } else if (stat.isDirectory()) {
+          // 第一层子目录内的 ZIP：以 相对子路径/文件名 的形式返回
+          try {
+            const subFiles = await fs.promises.readdir(fullPath);
+            for (const sub of subFiles) {
+              const subFull = path.join(fullPath, sub);
+              const subStat = await fs.promises.stat(subFull);
+              if (subStat.isFile() && sub.toLowerCase().endsWith(".zip")) {
+                result.push(path.join(entry, sub));
+              }
+            }
+          } catch (subErr) {
+            this.error(`读取子目录失败(${entry}): ${subErr.message}`);
+          }
+        }
+      }
+
+      return result;
     } catch (err) {
       this.error(`读取目录失败: ${err.message}`);
       return [];
@@ -87,28 +110,19 @@ class BatchProcessor {
 
   async extractZip(zipPath, outputDir, password = null) {
     return new Promise((resolve) => {
-      const args = ["x", zipPath, `-o${outputDir}`, "-y"];
+      // 性能优化：开启多线程、降低日志
+      const args = ["x", zipPath, `-o${outputDir}`, "-y", "-mmt=on", "-bb0"];
       if (password) {
         args.push(`-p${password}`);
       }
 
-      this.log(`解压文件: ${path.basename(zipPath)}`);
+      this.log(`解压开始: ${path.basename(zipPath)}`);
 
-      const child = spawn("7z", args, { stdio: "pipe" });
+      const child = spawn("7z", args, { stdio: ["ignore", "ignore", "pipe"] });
 
-      let output = "";
       let errorOutput = "";
-
-      child.stdout.on("data", (data) => {
-        const message = data.toString();
-        output += message;
-        this.log(message.trim());
-      });
-
       child.stderr.on("data", (data) => {
-        const message = data.toString();
-        errorOutput += message;
-        this.error(message.trim());
+        errorOutput += data.toString();
       });
 
       child.on("close", (code) => {
@@ -168,7 +182,12 @@ class BatchProcessor {
 
   async processZipFile(zipPath) {
     const zipName = path.basename(zipPath, ".zip");
-    const outputDir = path.join(path.dirname(zipPath), zipName);
+    // 优先输出到配置的 outputPath；否则与源同级
+    const parentDir =
+      this.config.outputPath && this.config.outputPath !== this.config.inputPath
+        ? this.config.outputPath
+        : path.dirname(zipPath);
+    const outputDir = path.join(parentDir, zipName);
 
     // 创建输出目录
     try {
