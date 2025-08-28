@@ -114,6 +114,41 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const watermarkRef = useRef<HTMLDivElement>(null);
 
+  // 统一工具：rem 偏移像素
+  const getRemOffsets = () => {
+    const rootFontSize = parseFloat(
+      getComputedStyle(document.documentElement).fontSize || "16",
+    );
+    return { rightPx: 2 * rootFontSize, bottomPx: 1 * rootFontSize };
+  };
+
+  // 统一工具：基于图片尺寸和 rem 偏移计算默认右下角百分比位置
+  const computeDefaultPositionForImage = (
+    imageUrl: string,
+    base: WatermarkPosition,
+  ): Promise<WatermarkPosition> => {
+    return new Promise((resolve) => {
+      const { rightPx, bottomPx } = getRemOffsets();
+      const img = new Image();
+      img.onload = () => {
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        const pixelWidth = base.width * imgWidth;
+        const pixelHeight = base.height * imgHeight;
+        const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
+        const pixelY = Math.max(0, imgHeight - bottomPx - pixelHeight);
+        resolve({
+          x: pixelX / imgWidth,
+          y: pixelY / imgHeight,
+          width: base.width,
+          height: base.height,
+          rotation: base.rotation,
+        });
+      };
+      img.src = imageUrl;
+    });
+  };
+
   // Snackbar 处理函数
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
@@ -249,47 +284,21 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
 
       // 异步创建 ImageItem，并将水印默认定位到右下角（bottom:1rem; right:2rem）
       const createItems = async () => {
-        const rootFontSize = parseFloat(
-          getComputedStyle(document.documentElement).fontSize || "16",
-        );
-        const rightPx = 2 * rootFontSize;
-        const bottomPx = 1 * rootFontSize;
-
         const items: ImageItem[] = await Promise.all(
-          imageFiles.map((filePath, index) => {
-            return new Promise<ImageItem>((resolve) => {
-              const fileName = filePath.substring(
-                filePath.lastIndexOf("\\") + 1,
-              );
-              const file = new File([], fileName, { type: "image/*" });
-              const url = `file://${filePath}`;
-
-              const img = new Image();
-              img.onload = () => {
-                const imgWidth = img.width;
-                const imgHeight = img.height;
-                const pixelWidth = watermarkPosition.width * imgWidth;
-                const pixelHeight = watermarkPosition.height * imgHeight;
-                const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
-                const pixelY = Math.max(0, imgHeight - bottomPx - pixelHeight);
-                const x = pixelX / imgWidth;
-                const y = pixelY / imgHeight;
-
-                resolve({
-                  id: Date.now() + index,
-                  file,
-                  url,
-                  watermarkPosition: {
-                    x,
-                    y,
-                    width: watermarkPosition.width,
-                    height: watermarkPosition.height,
-                    rotation: watermarkPosition.rotation,
-                  },
-                });
-              };
-              img.src = url;
-            });
+          imageFiles.map(async (filePath, index) => {
+            const fileName = filePath.substring(filePath.lastIndexOf("\\") + 1);
+            const file = new File([], fileName, { type: "image/*" });
+            const url = `file://${filePath}`;
+            const pos = await computeDefaultPositionForImage(
+              url,
+              watermarkPosition,
+            );
+            return {
+              id: Date.now() + index,
+              file,
+              url,
+              watermarkPosition: pos,
+            };
           }),
         );
 
@@ -340,48 +349,21 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
           imageFiles.forEach((file: any) => dataTransfer.items.add(file));
 
           // 直接处理文件上传，水印默认定位到右下角
-          const rootFontSize = parseFloat(
-            getComputedStyle(document.documentElement).fontSize || "16",
-          );
-          const rightPx = 2 * rootFontSize;
-          const bottomPx = 1 * rootFontSize;
-
           const filesArray = Array.from(dataTransfer.files);
           Promise.all(
-            filesArray.map(
-              (file, index) =>
-                new Promise<ImageItem>((resolve) => {
-                  const url = URL.createObjectURL(file);
-                  const img = new Image();
-                  img.onload = () => {
-                    const imgWidth = img.width;
-                    const imgHeight = img.height;
-                    const pixelWidth = watermarkPosition.width * imgWidth;
-                    const pixelHeight = watermarkPosition.height * imgHeight;
-                    const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
-                    const pixelY = Math.max(
-                      0,
-                      imgHeight - bottomPx - pixelHeight,
-                    );
-                    const x = pixelX / imgWidth;
-                    const y = pixelY / imgHeight;
-
-                    resolve({
-                      id: Date.now() + index,
-                      file,
-                      url,
-                      watermarkPosition: {
-                        x,
-                        y,
-                        width: watermarkPosition.width,
-                        height: watermarkPosition.height,
-                        rotation: watermarkPosition.rotation,
-                      },
-                    });
-                  };
-                  img.src = url;
-                }),
-            ),
+            filesArray.map(async (file, index) => {
+              const url = URL.createObjectURL(file);
+              const pos = await computeDefaultPositionForImage(
+                url,
+                watermarkPosition,
+              );
+              return {
+                id: Date.now() + index,
+                file,
+                url,
+                watermarkPosition: pos,
+              } as ImageItem;
+            }),
           ).then((items) => {
             setImages((prev) => [...prev, ...items]);
             if (selectedImageIndex === -1 && items.length > 0) {
@@ -444,44 +426,20 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
     (files: FileList) => {
       console.log("handleImageUpload called with files:", files);
 
-      const rootFontSize = parseFloat(
-        getComputedStyle(document.documentElement).fontSize || "16",
-      );
-      const rightPx = 2 * rootFontSize;
-      const bottomPx = 1 * rootFontSize;
-
       Promise.all(
-        Array.from(files).map(
-          (file, index) =>
-            new Promise<ImageItem>((resolve) => {
-              const url = URL.createObjectURL(file);
-              const img = new Image();
-              img.onload = () => {
-                const imgWidth = img.width;
-                const imgHeight = img.height;
-                const pixelWidth = watermarkPosition.width * imgWidth;
-                const pixelHeight = watermarkPosition.height * imgHeight;
-                const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
-                const pixelY = Math.max(0, imgHeight - bottomPx - pixelHeight);
-                const x = pixelX / imgWidth;
-                const y = pixelY / imgHeight;
-
-                resolve({
-                  id: Date.now() + index,
-                  file,
-                  url,
-                  watermarkPosition: {
-                    x,
-                    y,
-                    width: watermarkPosition.width,
-                    height: watermarkPosition.height,
-                    rotation: watermarkPosition.rotation,
-                  },
-                });
-              };
-              img.src = url;
-            }),
-        ),
+        Array.from(files).map(async (file, index) => {
+          const url = URL.createObjectURL(file);
+          const pos = await computeDefaultPositionForImage(
+            url,
+            watermarkPosition,
+          );
+          return {
+            id: Date.now() + index,
+            file,
+            url,
+            watermarkPosition: pos,
+          } as ImageItem;
+        }),
       ).then((items) => {
         console.log("Created new images:", items);
         setImages((prev) => [...prev, ...items]);
