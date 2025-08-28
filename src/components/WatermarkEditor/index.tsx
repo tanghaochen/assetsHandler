@@ -247,24 +247,59 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
         return;
       }
 
-      // 将文件路径转换为 File 对象
-      const newImages: ImageItem[] = imageFiles.map((filePath, index) => {
-        // 在 Electron 环境中，我们需要从文件路径创建 File 对象
-        const fileName = filePath.substring(filePath.lastIndexOf("\\") + 1);
-        const file = new File([], fileName, { type: "image/*" });
+      // 异步创建 ImageItem，并将水印默认定位到右下角（bottom:1rem; right:2rem）
+      const createItems = async () => {
+        const rootFontSize = parseFloat(
+          getComputedStyle(document.documentElement).fontSize || "16",
+        );
+        const rightPx = 2 * rootFontSize;
+        const bottomPx = 1 * rootFontSize;
 
-        return {
-          id: Date.now() + index,
-          file,
-          url: `file://${filePath}`, // 使用 file:// 协议
-          watermarkPosition: { ...watermarkPosition },
-        };
-      });
+        const items: ImageItem[] = await Promise.all(
+          imageFiles.map((filePath, index) => {
+            return new Promise<ImageItem>((resolve) => {
+              const fileName = filePath.substring(
+                filePath.lastIndexOf("\\") + 1,
+              );
+              const file = new File([], fileName, { type: "image/*" });
+              const url = `file://${filePath}`;
 
-      setImages((prev) => [...prev, ...newImages]);
-      if (selectedImageIndex === -1 && newImages.length > 0) {
-        setSelectedImageIndex(0);
-      }
+              const img = new Image();
+              img.onload = () => {
+                const imgWidth = img.width;
+                const imgHeight = img.height;
+                const pixelWidth = watermarkPosition.width * imgWidth;
+                const pixelHeight = watermarkPosition.height * imgHeight;
+                const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
+                const pixelY = Math.max(0, imgHeight - bottomPx - pixelHeight);
+                const x = pixelX / imgWidth;
+                const y = pixelY / imgHeight;
+
+                resolve({
+                  id: Date.now() + index,
+                  file,
+                  url,
+                  watermarkPosition: {
+                    x,
+                    y,
+                    width: watermarkPosition.width,
+                    height: watermarkPosition.height,
+                    rotation: watermarkPosition.rotation,
+                  },
+                });
+              };
+              img.src = url;
+            });
+          }),
+        );
+
+        setImages((prev) => [...prev, ...items]);
+        if (selectedImageIndex === -1 && items.length > 0) {
+          setSelectedImageIndex(0);
+        }
+      };
+
+      createItems();
     },
     [selectedImageIndex, watermarkPosition],
   );
@@ -304,20 +339,55 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
           const dataTransfer = new DataTransfer();
           imageFiles.forEach((file: any) => dataTransfer.items.add(file));
 
-          // 直接处理文件上传
-          const newImages: ImageItem[] = Array.from(dataTransfer.files).map(
-            (file, index) => ({
-              id: Date.now() + index,
-              file,
-              url: URL.createObjectURL(file),
-              watermarkPosition: { ...watermarkPosition },
-            }),
+          // 直接处理文件上传，水印默认定位到右下角
+          const rootFontSize = parseFloat(
+            getComputedStyle(document.documentElement).fontSize || "16",
           );
+          const rightPx = 2 * rootFontSize;
+          const bottomPx = 1 * rootFontSize;
 
-          setImages((prev) => [...prev, ...newImages]);
-          if (selectedImageIndex === -1 && newImages.length > 0) {
-            setSelectedImageIndex(0);
-          }
+          const filesArray = Array.from(dataTransfer.files);
+          Promise.all(
+            filesArray.map(
+              (file, index) =>
+                new Promise<ImageItem>((resolve) => {
+                  const url = URL.createObjectURL(file);
+                  const img = new Image();
+                  img.onload = () => {
+                    const imgWidth = img.width;
+                    const imgHeight = img.height;
+                    const pixelWidth = watermarkPosition.width * imgWidth;
+                    const pixelHeight = watermarkPosition.height * imgHeight;
+                    const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
+                    const pixelY = Math.max(
+                      0,
+                      imgHeight - bottomPx - pixelHeight,
+                    );
+                    const x = pixelX / imgWidth;
+                    const y = pixelY / imgHeight;
+
+                    resolve({
+                      id: Date.now() + index,
+                      file,
+                      url,
+                      watermarkPosition: {
+                        x,
+                        y,
+                        width: watermarkPosition.width,
+                        height: watermarkPosition.height,
+                        rotation: watermarkPosition.rotation,
+                      },
+                    });
+                  };
+                  img.src = url;
+                }),
+            ),
+          ).then((items) => {
+            setImages((prev) => [...prev, ...items]);
+            if (selectedImageIndex === -1 && items.length > 0) {
+              setSelectedImageIndex(0);
+            }
+          });
         } else {
           alert("请拖拽图片文件！");
         }
@@ -374,19 +444,51 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
     (files: FileList) => {
       console.log("handleImageUpload called with files:", files);
 
-      const newImages: ImageItem[] = Array.from(files).map((file, index) => ({
-        id: Date.now() + index,
-        file,
-        url: URL.createObjectURL(file),
-        watermarkPosition: { ...watermarkPosition },
-      }));
+      const rootFontSize = parseFloat(
+        getComputedStyle(document.documentElement).fontSize || "16",
+      );
+      const rightPx = 2 * rootFontSize;
+      const bottomPx = 1 * rootFontSize;
 
-      console.log("Created new images:", newImages);
+      Promise.all(
+        Array.from(files).map(
+          (file, index) =>
+            new Promise<ImageItem>((resolve) => {
+              const url = URL.createObjectURL(file);
+              const img = new Image();
+              img.onload = () => {
+                const imgWidth = img.width;
+                const imgHeight = img.height;
+                const pixelWidth = watermarkPosition.width * imgWidth;
+                const pixelHeight = watermarkPosition.height * imgHeight;
+                const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
+                const pixelY = Math.max(0, imgHeight - bottomPx - pixelHeight);
+                const x = pixelX / imgWidth;
+                const y = pixelY / imgHeight;
 
-      setImages((prev) => [...prev, ...newImages]);
-      if (selectedImageIndex === -1 && newImages.length > 0) {
-        setSelectedImageIndex(0);
-      }
+                resolve({
+                  id: Date.now() + index,
+                  file,
+                  url,
+                  watermarkPosition: {
+                    x,
+                    y,
+                    width: watermarkPosition.width,
+                    height: watermarkPosition.height,
+                    rotation: watermarkPosition.rotation,
+                  },
+                });
+              };
+              img.src = url;
+            }),
+        ),
+      ).then((items) => {
+        console.log("Created new images:", items);
+        setImages((prev) => [...prev, ...items]);
+        if (selectedImageIndex === -1 && items.length > 0) {
+          setSelectedImageIndex(0);
+        }
+      });
     },
     [selectedImageIndex, watermarkPosition],
   );
