@@ -134,14 +134,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
         const imgWidth = img.width;
         const imgHeight = img.height;
         const pixelWidth = base.width * imgWidth;
-        const pixelHeight = base.height * imgHeight;
+        const fixedHeight = 18; // 固定高度为18px
         const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
-        const pixelY = Math.max(0, imgHeight - bottomPx - pixelHeight);
+        const pixelY = Math.max(0, imgHeight - bottomPx - fixedHeight);
         resolve({
           x: pixelX / imgWidth,
           y: pixelY / imgHeight,
           width: base.width,
-          height: base.height,
+          height: fixedHeight / imgHeight, // 基于固定高度计算百分比
           rotation: base.rotation,
         });
       };

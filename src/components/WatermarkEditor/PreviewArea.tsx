@@ -34,6 +34,11 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
     ref,
   ) => {
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+    const [originalImageSize, setOriginalImageSize] = useState({
+      width: 0,
+      height: 0,
+    });
+    const [scale, setScale] = useState(1);
     const [showMoveable, setShowMoveable] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
@@ -48,12 +53,43 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
         const img = new window.Image();
         img.onload = () => {
-          setImageSize({ width: img.width, height: img.height });
+          // 保存原始尺寸
+          setOriginalImageSize({ width: img.width, height: img.height });
+
+          // 计算适合预览区域的图片显示尺寸，默认放大到合适大小
+          const containerWidth = 600; // 预览容器的最大宽度
+          const containerHeight = 400; // 预览容器的最大高度
+
+          const imgAspectRatio = img.width / img.height;
+          const containerAspectRatio = containerWidth / containerHeight;
+
+          let displayWidth, displayHeight;
+
+          if (imgAspectRatio > containerAspectRatio) {
+            // 图片更宽，以宽度为准，但至少占容器的80%
+            displayWidth = Math.max(img.width * 0.8, containerWidth * 0.8);
+            displayHeight = displayWidth / imgAspectRatio;
+          } else {
+            // 图片更高，以高度为准，但至少占容器的80%
+            displayHeight = Math.max(img.height * 0.8, containerHeight * 0.8);
+            displayWidth = displayHeight * imgAspectRatio;
+          }
+
+          // 计算初始缩放比例
+          const initialScale = displayWidth / img.width;
+          setScale(initialScale);
+          setImageSize({ width: displayWidth, height: displayHeight });
           setShowMoveable(true);
-          console.log("Image loaded, size:", {
+
+          console.log("Image loaded, original size:", {
             width: img.width,
             height: img.height,
           });
+          console.log("Display size:", {
+            width: displayWidth,
+            height: displayHeight,
+          });
+          console.log("Initial scale:", initialScale);
 
           // 动画结束后重置状态
           setTimeout(() => {
@@ -76,11 +112,20 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     // 当水印位置变化时，更新水印元素的样式
     useEffect(() => {
-      if (watermarkRef.current && imageSize.width && imageSize.height) {
+      if (
+        watermarkRef.current &&
+        originalImageSize.width &&
+        originalImageSize.height
+      ) {
         const style = getWatermarkStyle();
         Object.assign(watermarkRef.current.style, style);
       }
-    }, [watermarkPosition, imageSize.width, imageSize.height]);
+    }, [
+      watermarkPosition,
+      originalImageSize.width,
+      originalImageSize.height,
+      scale,
+    ]);
 
     const handleDrag = (e: any) => {
       console.log("Drag event:", e);
@@ -98,9 +143,11 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       const newLeft = rect.left - containerRect.left;
       const newTop = rect.top - containerRect.top;
 
-      // 计算百分比位置
-      const x = newLeft / imageSize.width;
-      const y = newTop / imageSize.height;
+      // 计算百分比位置 - 使用缩放后的尺寸
+      const scaledWidth = originalImageSize.width * scale;
+      const scaledHeight = originalImageSize.height * scale;
+      const x = newLeft / scaledWidth;
+      const y = newTop / scaledHeight;
 
       onWatermarkUpdate({
         ...watermarkPosition,
@@ -128,11 +175,13 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       const newWidth = rect.width;
       const newHeight = rect.height;
 
-      // 计算百分比位置和尺寸
-      const x = newLeft / imageSize.width;
-      const y = newTop / imageSize.height;
-      const widthPercent = newWidth / imageSize.width;
-      const heightPercent = newHeight / imageSize.height;
+      // 计算百分比位置和尺寸 - 使用缩放后的尺寸
+      const scaledWidth = originalImageSize.width * scale;
+      const scaledHeight = originalImageSize.height * scale;
+      const x = newLeft / scaledWidth;
+      const y = newTop / scaledHeight;
+      const widthPercent = newWidth / scaledWidth;
+      const heightPercent = newHeight / scaledHeight;
 
       // 确保位置在有效范围内，但允许任意尺寸
       const clampedX = Math.max(0, Math.min(1 - widthPercent, x));
@@ -177,14 +226,28 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       setIsHovered(false);
     };
 
-    const getWatermarkStyle = () => {
-      if (!imageSize.width || !imageSize.height) return {};
+    const handleZoomIn = () => {
+      setScale((prev) => Math.min(prev * 1.2, 5)); // 最大放大5倍
+    };
 
-      // 计算像素尺寸 - 将百分比位置转换为像素位置，适应不同尺寸的图片
-      const pixelWidth = watermarkPosition.width * imageSize.width;
-      const pixelHeight = watermarkPosition.height * imageSize.height;
-      const pixelX = watermarkPosition.x * imageSize.width;
-      const pixelY = watermarkPosition.y * imageSize.height;
+    const handleZoomOut = () => {
+      setScale((prev) => Math.max(prev / 1.2, 0.1)); // 最小缩小到0.1倍
+    };
+
+    const handleResetZoom = () => {
+      setScale(1);
+    };
+
+    const getWatermarkStyle = () => {
+      if (!originalImageSize.width || !originalImageSize.height) return {};
+
+      // 计算像素尺寸 - 直接使用缩放后的尺寸
+      const scaledWidth = originalImageSize.width * scale;
+      const scaledHeight = originalImageSize.height * scale;
+      const pixelWidth = watermarkPosition.width * scaledWidth;
+      const pixelHeight = watermarkPosition.height * scaledHeight;
+      const pixelX = watermarkPosition.x * scaledWidth;
+      const pixelY = watermarkPosition.y * scaledHeight;
 
       return {
         position: "absolute" as const,
@@ -240,8 +303,62 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
           <h3 className="text-lg font-semibold text-gray-700">预览区域</h3>
           <div className="image-info">
             <span className="text-sm text-gray-500">
-              {imageSize.width} × {imageSize.height} px
+              {originalImageSize.width} × {originalImageSize.height} px
             </span>
+            <span className="text-sm text-gray-500 ml-2">
+              (缩放: {Math.round(scale * 100)}%)
+            </span>
+          </div>
+          <div className="zoom-controls">
+            <button onClick={handleZoomOut} className="zoom-btn" title="缩小">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 12H4"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={handleResetZoom}
+              className="zoom-btn"
+              title="重置缩放"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                />
+              </svg>
+            </button>
+            <button onClick={handleZoomIn} className="zoom-btn" title="放大">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -255,8 +372,8 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             onMouseLeave={handleMouseLeave}
             style={{
               position: "relative",
-              width: `${imageSize.width}px`,
-              height: `${imageSize.height}px`,
+              width: `${originalImageSize.width * scale}px`,
+              height: `${originalImageSize.height * scale}px`,
               maxWidth: "100%",
               maxHeight: "100%",
               border: "1px solid #ccc",
