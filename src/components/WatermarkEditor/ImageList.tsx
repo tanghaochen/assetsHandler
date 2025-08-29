@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ImageItem } from "./types";
 import { color } from "html2canvas/dist/types/css/types/color";
 import Button from "@mui/material/Button";
@@ -22,6 +22,38 @@ const ImageList: React.FC<ImageListProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // 保持选中项可见
+  useEffect(() => {
+    if (selectedIndex < 0) return;
+    const container = containerRef.current;
+    const item = itemRefs.current[selectedIndex];
+    if (!container || !item) return;
+
+    // 优先使用更可控的滚动逻辑，确保在指定容器内可见
+    const containerRect = container.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+
+    const isAbove = itemRect.top < containerRect.top;
+    const isBelow = itemRect.bottom > containerRect.bottom;
+
+    if (isAbove) {
+      const offset = itemRect.top - containerRect.top - 8; // 上边缘留点内边距
+      container.scrollBy({ top: offset, behavior: "smooth" });
+    } else if (isBelow) {
+      const offset = itemRect.bottom - containerRect.bottom + 8; // 下边缘留点内边距
+      container.scrollBy({ top: offset, behavior: "smooth" });
+    } else {
+      // 作为兜底，调用浏览器原生方法
+      item.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }
+  }, [selectedIndex, images.length]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -211,6 +243,7 @@ const ImageList: React.FC<ImageListProps> = ({
 
       <div
         className={`image-list-content ${isDragOver ? "drag-over" : ""}`}
+        ref={containerRef}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragEnter={handleDragEnter}
@@ -269,6 +302,7 @@ const ImageList: React.FC<ImageListProps> = ({
                 className={`image-item group ${
                   selectedIndex === index ? "selected" : ""
                 }`}
+                ref={(el) => (itemRefs.current[index] = el)}
                 onClick={() => onImageSelect(index)}
               >
                 <div className="image-thumbnail relative">
