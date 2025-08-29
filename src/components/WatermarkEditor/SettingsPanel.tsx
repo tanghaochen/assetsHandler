@@ -311,7 +311,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* 固定在底部的操作按钮 */}
       <div className="fixed-action-buttons">
         <button
-          onClick={onApplyToAll}
+          onClick={() => {
+            if (imageCount > 0) {
+              const confirmed = window.confirm(
+                `确定要将当前水印设置应用到所有 ${imageCount} 张图片吗？\n\n注意：此操作会覆盖所有图片的独立水印位置设置。`,
+              );
+              if (confirmed) {
+                onApplyToAll();
+              }
+            }
+          }}
           disabled={imageCount === 0}
           className="action-btn apply-btn"
           title="将当前水印位置以百分比形式应用到所有图片，适应不同尺寸"

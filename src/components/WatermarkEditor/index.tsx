@@ -131,41 +131,49 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
   // 键盘事件处理
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      // 在输入框/文本域/可编辑元素中不处理 Tab 快捷键，避免影响输入和表单导航
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      const isTypingContext =
+        target?.isContentEditable ||
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select";
+
       switch (event.key) {
-        case "ArrowLeft":
+        case "Tab":
           if (images.length === 0) return;
-          event.preventDefault();
-
-          // 检查是否已经是第一张图片
-          if (selectedImageIndex <= 0) {
-            alert("已经是第一张图片了！");
+          if (!isTypingContext) {
+            event.preventDefault();
+          } else {
+            // 在输入场景下不拦截 Tab
             return;
           }
 
-          const prevIndex = selectedImageIndex - 1;
-          setSlideDirection("left");
-          setSelectedImageIndex(prevIndex);
-          // 加载对应图片的水印位置
-          if (images[prevIndex]) {
-            setWatermarkPosition({ ...images[prevIndex].watermarkPosition });
-          }
-          break;
-        case "ArrowRight":
-          if (images.length === 0) return;
-          event.preventDefault();
-
-          // 检查是否已经是最后一张图片
-          if (selectedImageIndex >= images.length - 1) {
-            alert("已经是最后一张图片了！");
-            return;
-          }
-
-          const nextIndex = selectedImageIndex + 1;
-          setSlideDirection("right");
-          setSelectedImageIndex(nextIndex);
-          // 加载对应图片的水印位置
-          if (images[nextIndex]) {
-            setWatermarkPosition({ ...images[nextIndex].watermarkPosition });
+          if (event.shiftKey) {
+            // 向前一张
+            if (selectedImageIndex <= 0) {
+              alert("已经是第一张图片了！");
+              return;
+            }
+            const prevIndex = selectedImageIndex - 1;
+            setSlideDirection("left");
+            setSelectedImageIndex(prevIndex);
+            if (images[prevIndex]) {
+              setWatermarkPosition({ ...images[prevIndex].watermarkPosition });
+            }
+          } else {
+            // 向后一张
+            if (selectedImageIndex >= images.length - 1) {
+              alert("已经是最后一张图片了！");
+              return;
+            }
+            const nextIndex = selectedImageIndex + 1;
+            setSlideDirection("right");
+            setSelectedImageIndex(nextIndex);
+            if (images[nextIndex]) {
+              setWatermarkPosition({ ...images[nextIndex].watermarkPosition });
+            }
           }
           break;
         case "s":
@@ -560,7 +568,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
         watermarkPosition: { ...watermarkPosition }, // 使用百分比位置，适应每张图片
       })),
     );
-  }, [watermarkPosition]);
+
+    // 显示成功提示
+    showSnackbar(
+      `已成功将水印设置应用到所有 ${images.length} 张图片`,
+      "success",
+    );
+  }, [watermarkPosition, images.length, showSnackbar]);
 
   // 导出所有图片：打包为 zip，并保留原文件名与后缀格式
   const exportAllImages = useCallback(async () => {
@@ -895,7 +909,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
         </div>
         {images.length > 0 && (
           <div className="text-sm text-gray-600 mt-1">
-            键盘快捷键：↑↓ 切换图片 | Ctrl+S 保存设置
+            键盘快捷键：Tab/Shift+Tab 切换图片 | Ctrl+S 保存设置
           </div>
         )}
       </div>
