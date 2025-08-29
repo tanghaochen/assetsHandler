@@ -134,22 +134,11 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       const widthPercent = newWidth / imageSize.width;
       const heightPercent = newHeight / imageSize.height;
 
-      // 确保位置和尺寸在有效范围内
+      // 确保位置在有效范围内，但允许任意尺寸
       const clampedX = Math.max(0, Math.min(1 - widthPercent, x));
       const clampedY = Math.max(0, Math.min(1 - heightPercent, y));
-      const clampedWidth = Math.max(0.1, Math.min(1, widthPercent));
-      const clampedHeight = Math.max(0.05, Math.min(1, heightPercent));
-
-      console.log("Resize calculations:", {
-        original: { x: newLeft, y: newTop, width: newWidth, height: newHeight },
-        percent: { x, y, width: widthPercent, height: heightPercent },
-        clamped: {
-          x: clampedX,
-          y: clampedY,
-          width: clampedWidth,
-          height: clampedHeight,
-        },
-      });
+      const clampedWidth = Math.max(0.01, Math.min(1, widthPercent)); // 最小1%而不是10%
+      const clampedHeight = Math.max(0.01, Math.min(1, heightPercent)); // 最小1%而不是5%
 
       onWatermarkUpdate({
         ...watermarkPosition,
