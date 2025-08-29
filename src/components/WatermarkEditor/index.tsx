@@ -114,6 +114,41 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const watermarkRef = useRef<HTMLDivElement>(null);
 
+  // 统一工具：rem 偏移像素
+  const getRemOffsets = () => {
+    const rootFontSize = parseFloat(
+      getComputedStyle(document.documentElement).fontSize || "16",
+    );
+    return { rightPx: 2 * rootFontSize, bottomPx: 1 * rootFontSize };
+  };
+
+  // 统一工具：基于图片尺寸和 rem 偏移计算默认右下角百分比位置
+  const computeDefaultPositionForImage = (
+    imageUrl: string,
+    base: WatermarkPosition,
+  ): Promise<WatermarkPosition> => {
+    return new Promise((resolve) => {
+      const { rightPx, bottomPx } = getRemOffsets();
+      const img = new Image();
+      img.onload = () => {
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        const pixelWidth = base.width * imgWidth;
+        const pixelHeight = base.height * imgHeight;
+        const pixelX = Math.max(0, imgWidth - rightPx - pixelWidth);
+        const pixelY = Math.max(0, imgHeight - bottomPx - pixelHeight);
+        resolve({
+          x: pixelX / imgWidth,
+          y: pixelY / imgHeight,
+          width: base.width,
+          height: base.height,
+          rotation: base.rotation,
+        });
+      };
+      img.src = imageUrl;
+    });
+  };
+
   // Snackbar 处理函数
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
@@ -255,24 +290,33 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
         return;
       }
 
-      // 将文件路径转换为 File 对象
-      const newImages: ImageItem[] = imageFiles.map((filePath, index) => {
-        // 在 Electron 环境中，我们需要从文件路径创建 File 对象
-        const fileName = filePath.substring(filePath.lastIndexOf("\\") + 1);
-        const file = new File([], fileName, { type: "image/*" });
+      // 异步创建 ImageItem，并将水印默认定位到右下角（bottom:1rem; right:2rem）
+      const createItems = async () => {
+        const items: ImageItem[] = await Promise.all(
+          imageFiles.map(async (filePath, index) => {
+            const fileName = filePath.substring(filePath.lastIndexOf("\\") + 1);
+            const file = new File([], fileName, { type: "image/*" });
+            const url = `file://${filePath}`;
+            const pos = await computeDefaultPositionForImage(
+              url,
+              watermarkPosition,
+            );
+            return {
+              id: Date.now() + index,
+              file,
+              url,
+              watermarkPosition: pos,
+            };
+          }),
+        );
 
-        return {
-          id: Date.now() + index,
-          file,
-          url: `file://${filePath}`, // 使用 file:// 协议
-          watermarkPosition: { ...watermarkPosition },
-        };
-      });
+        setImages((prev) => [...prev, ...items]);
+        if (selectedImageIndex === -1 && items.length > 0) {
+          setSelectedImageIndex(0);
+        }
+      };
 
-      setImages((prev) => [...prev, ...newImages]);
-      if (selectedImageIndex === -1 && newImages.length > 0) {
-        setSelectedImageIndex(0);
-      }
+      createItems();
     },
     [selectedImageIndex, watermarkPosition],
   );
@@ -312,20 +356,28 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
           const dataTransfer = new DataTransfer();
           imageFiles.forEach((file: any) => dataTransfer.items.add(file));
 
-          // 直接处理文件上传
-          const newImages: ImageItem[] = Array.from(dataTransfer.files).map(
-            (file, index) => ({
-              id: Date.now() + index,
-              file,
-              url: URL.createObjectURL(file),
-              watermarkPosition: { ...watermarkPosition },
+          // 直接处理文件上传，水印默认定位到右下角
+          const filesArray = Array.from(dataTransfer.files);
+          Promise.all(
+            filesArray.map(async (file, index) => {
+              const url = URL.createObjectURL(file);
+              const pos = await computeDefaultPositionForImage(
+                url,
+                watermarkPosition,
+              );
+              return {
+                id: Date.now() + index,
+                file,
+                url,
+                watermarkPosition: pos,
+              } as ImageItem;
             }),
-          );
-
-          setImages((prev) => [...prev, ...newImages]);
-          if (selectedImageIndex === -1 && newImages.length > 0) {
-            setSelectedImageIndex(0);
-          }
+          ).then((items) => {
+            setImages((prev) => [...prev, ...items]);
+            if (selectedImageIndex === -1 && items.length > 0) {
+              setSelectedImageIndex(0);
+            }
+          });
         } else {
           alert("请拖拽图片文件！");
         }
@@ -382,19 +434,27 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
     (files: FileList) => {
       console.log("handleImageUpload called with files:", files);
 
-      const newImages: ImageItem[] = Array.from(files).map((file, index) => ({
-        id: Date.now() + index,
-        file,
-        url: URL.createObjectURL(file),
-        watermarkPosition: { ...watermarkPosition },
-      }));
-
-      console.log("Created new images:", newImages);
-
-      setImages((prev) => [...prev, ...newImages]);
-      if (selectedImageIndex === -1 && newImages.length > 0) {
-        setSelectedImageIndex(0);
-      }
+      Promise.all(
+        Array.from(files).map(async (file, index) => {
+          const url = URL.createObjectURL(file);
+          const pos = await computeDefaultPositionForImage(
+            url,
+            watermarkPosition,
+          );
+          return {
+            id: Date.now() + index,
+            file,
+            url,
+            watermarkPosition: pos,
+          } as ImageItem;
+        }),
+      ).then((items) => {
+        console.log("Created new images:", items);
+        setImages((prev) => [...prev, ...items]);
+        if (selectedImageIndex === -1 && items.length > 0) {
+          setSelectedImageIndex(0);
+        }
+      });
     },
     [selectedImageIndex, watermarkPosition],
   );
