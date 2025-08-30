@@ -56,7 +56,10 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
           // 保存原始尺寸
           setOriginalImageSize({ width: img.width, height: img.height });
 
-          // 计算适合预览区域的图片显示尺寸，默认放大到合适大小
+          // 默认缩放为100%
+          const initialScale = 1;
+
+          // 计算适合预览区域的图片显示尺寸
           const containerWidth = 600; // 预览容器的最大宽度
           const containerHeight = 400; // 预览容器的最大高度
 
@@ -66,17 +69,14 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
           let displayWidth, displayHeight;
 
           if (imgAspectRatio > containerAspectRatio) {
-            // 图片更宽，以宽度为准，但至少占容器的80%
-            displayWidth = Math.max(img.width * 0.8, containerWidth * 0.8);
+            // 图片更宽，以宽度为准
+            displayWidth = Math.min(img.width, containerWidth);
             displayHeight = displayWidth / imgAspectRatio;
           } else {
-            // 图片更高，以高度为准，但至少占容器的80%
-            displayHeight = Math.max(img.height * 0.8, containerHeight * 0.8);
+            // 图片更高，以高度为准
+            displayHeight = Math.min(img.height, containerHeight);
             displayWidth = displayHeight * imgAspectRatio;
           }
-
-          // 计算初始缩放比例
-          const initialScale = displayWidth / img.width;
           setScale(initialScale);
           setImageSize({ width: displayWidth, height: displayHeight });
           setShowMoveable(true);
@@ -235,7 +235,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
     };
 
     const handleResetZoom = () => {
-      setScale(1);
+      setScale(1); // 重置到100%
     };
 
     const getWatermarkStyle = () => {
