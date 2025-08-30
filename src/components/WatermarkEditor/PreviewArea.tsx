@@ -44,6 +44,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
     const [isAnimating, setIsAnimating] = useState(false);
     const [animationKey, setAnimationKey] = useState(0);
     const [previousImageId, setPreviousImageId] = useState<string | null>(null);
+    const [isWatermarkFocused, setIsWatermarkFocused] = useState(false);
 
     useEffect(() => {
       if (image) {
@@ -125,6 +126,76 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       originalImageSize.width,
       originalImageSize.height,
       scale,
+    ]);
+
+    // 添加键盘事件监听器
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (
+          !isWatermarkFocused ||
+          !originalImageSize.width ||
+          !originalImageSize.height
+        ) {
+          return;
+        }
+
+        const moveStep = 1; // 移动1像素
+        const scaledStep = moveStep / scale; // 根据缩放调整步长
+
+        let newX = watermarkPosition.x;
+        let newY = watermarkPosition.y;
+
+        switch (e.key) {
+          case "ArrowLeft":
+            e.preventDefault();
+            newX = Math.max(
+              0,
+              watermarkPosition.x - scaledStep / originalImageSize.width,
+            );
+            break;
+          case "ArrowRight":
+            e.preventDefault();
+            newX = Math.min(
+              1 - watermarkPosition.width,
+              watermarkPosition.x + scaledStep / originalImageSize.width,
+            );
+            break;
+          case "ArrowUp":
+            e.preventDefault();
+            newY = Math.max(
+              0,
+              watermarkPosition.y - scaledStep / originalImageSize.height,
+            );
+            break;
+          case "ArrowDown":
+            e.preventDefault();
+            newY = Math.min(
+              1 - watermarkPosition.height,
+              watermarkPosition.y + scaledStep / originalImageSize.height,
+            );
+            break;
+          default:
+            return;
+        }
+
+        onWatermarkUpdate({
+          ...watermarkPosition,
+          x: newX,
+          y: newY,
+        });
+      };
+
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [
+      isWatermarkFocused,
+      originalImageSize.width,
+      originalImageSize.height,
+      scale,
+      watermarkPosition,
+      onWatermarkUpdate,
     ]);
 
     const handleDrag = (e: any) => {
@@ -226,6 +297,22 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       setIsHovered(false);
     };
 
+    const handleWatermarkClick = () => {
+      setIsWatermarkFocused(true);
+    };
+
+    const handleContainerClick = (e: React.MouseEvent) => {
+      // 如果点击的是水印元素，不处理
+      if (
+        e.target === watermarkRef.current ||
+        watermarkRef.current?.contains(e.target as Node)
+      ) {
+        return;
+      }
+      // 点击其他地方时取消水印焦点
+      setIsWatermarkFocused(false);
+    };
+
     const handleZoomIn = () => {
       setScale((prev) => Math.min(prev * 1.2, 5)); // 最大放大5倍
     };
@@ -236,6 +323,61 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     const handleResetZoom = () => {
       setScale(1); // 重置到100%
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        !isWatermarkFocused ||
+        !originalImageSize.width ||
+        !originalImageSize.height
+      ) {
+        return;
+      }
+
+      const moveStep = 1; // 移动1像素
+      const scaledStep = moveStep / scale; // 根据缩放调整步长
+
+      let newX = watermarkPosition.x;
+      let newY = watermarkPosition.y;
+
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          newX = Math.max(
+            0,
+            watermarkPosition.x - scaledStep / originalImageSize.width,
+          );
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          newX = Math.min(
+            1 - watermarkPosition.width,
+            watermarkPosition.x + scaledStep / originalImageSize.width,
+          );
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          newY = Math.max(
+            0,
+            watermarkPosition.y - scaledStep / originalImageSize.height,
+          );
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          newY = Math.min(
+            1 - watermarkPosition.height,
+            watermarkPosition.y + scaledStep / originalImageSize.height,
+          );
+          break;
+        default:
+          return;
+      }
+
+      onWatermarkUpdate({
+        ...watermarkPosition,
+        x: newX,
+        y: newY,
+      });
     };
 
     const getWatermarkStyle = () => {
@@ -359,6 +501,14 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
                 />
               </svg>
             </button>
+            {isWatermarkFocused && (
+              <span
+                className="text-xs text-blue-600 ml-2"
+                title="使用方向键精确移动水印"
+              >
+                ⌨️ 方向键移动
+              </span>
+            )}
           </div>
         </div>
 
@@ -370,6 +520,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             key={animationKey}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            onClick={handleContainerClick}
             style={{
               position: "relative",
               width: `${originalImageSize.width * scale}px`,
@@ -396,6 +547,8 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
               ref={watermarkRef}
               className="watermark-element"
               style={getWatermarkStyle()}
+              onClick={handleWatermarkClick}
+              tabIndex={0}
             >
               {watermarkType === "text" && watermarkText}
               {watermarkType === "image" && watermarkImageUrl && (
