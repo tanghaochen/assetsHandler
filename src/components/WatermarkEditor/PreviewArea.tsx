@@ -44,7 +44,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
     const [isAnimating, setIsAnimating] = useState(false);
     const [animationKey, setAnimationKey] = useState(0);
     const [previousImageId, setPreviousImageId] = useState<string | null>(null);
-    const [isWatermarkFocused, setIsWatermarkFocused] = useState(false);
+    const [isWatermarkFocused, setIsWatermarkFocused] = useState(true);
 
     useEffect(() => {
       if (image) {
@@ -145,29 +145,29 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
         let newX = watermarkPosition.x;
         let newY = watermarkPosition.y;
 
-        switch (e.key) {
-          case "ArrowLeft":
+        switch (e.key.toLowerCase()) {
+          case "a":
             e.preventDefault();
             newX = Math.max(
               0,
               watermarkPosition.x - scaledStep / originalImageSize.width,
             );
             break;
-          case "ArrowRight":
+          case "d":
             e.preventDefault();
             newX = Math.min(
               1 - watermarkPosition.width,
               watermarkPosition.x + scaledStep / originalImageSize.width,
             );
             break;
-          case "ArrowUp":
+          case "w":
             e.preventDefault();
             newY = Math.max(
               0,
               watermarkPosition.y - scaledStep / originalImageSize.height,
             );
             break;
-          case "ArrowDown":
+          case "s":
             e.preventDefault();
             newY = Math.min(
               1 - watermarkPosition.height,
@@ -309,8 +309,8 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       ) {
         return;
       }
-      // 点击其他地方时取消水印焦点
-      setIsWatermarkFocused(false);
+      // 水印始终保持选中状态，不需要取消焦点
+      // setIsWatermarkFocused(false);
     };
 
     const handleZoomIn = () => {
@@ -340,29 +340,29 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       let newX = watermarkPosition.x;
       let newY = watermarkPosition.y;
 
-      switch (e.key) {
-        case "ArrowLeft":
+      switch (e.key.toLowerCase()) {
+        case "a":
           e.preventDefault();
           newX = Math.max(
             0,
             watermarkPosition.x - scaledStep / originalImageSize.width,
           );
           break;
-        case "ArrowRight":
+        case "d":
           e.preventDefault();
           newX = Math.min(
             1 - watermarkPosition.width,
             watermarkPosition.x + scaledStep / originalImageSize.width,
           );
           break;
-        case "ArrowUp":
+        case "w":
           e.preventDefault();
           newY = Math.max(
             0,
             watermarkPosition.y - scaledStep / originalImageSize.height,
           );
           break;
-        case "ArrowDown":
+        case "s":
           e.preventDefault();
           newY = Math.min(
             1 - watermarkPosition.height,
@@ -413,6 +413,8 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
         textOverflow: "ellipsis" as const,
         pointerEvents: "auto" as const,
         zIndex: 1000,
+        border: "2px solid #3b82f6",
+        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.2)",
       };
     };
 
@@ -504,9 +506,9 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             {isWatermarkFocused && (
               <span
                 className="text-xs text-blue-600 ml-2"
-                title="使用方向键精确移动水印"
+                title="使用WSAD键精确移动水印"
               >
-                ⌨️ 方向键移动
+                ⌨️ WSAD键移动
               </span>
             )}
           </div>
