@@ -1025,6 +1025,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
             onApplyToAll={applyToAllImages}
             onExportAll={exportAllImages}
             onClearSettings={handleClearSettings}
+            onClearAllImages={handleClearAll}
             imageCount={images.length}
           />
         </div>

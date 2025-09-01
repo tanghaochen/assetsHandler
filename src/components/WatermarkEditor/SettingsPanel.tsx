@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 interface SettingsPanelProps {
   watermarkText: string;
@@ -18,6 +18,7 @@ interface SettingsPanelProps {
   onApplyToAll: () => void;
   onExportAll: () => void;
   onClearSettings: () => void;
+  onClearAllImages: () => void;
   imageCount: number;
 }
 
@@ -39,8 +40,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onApplyToAll,
   onExportAll,
   onClearSettings,
+  onClearAllImages,
   imageCount,
 }) => {
+  const [showExportSuccessDialog, setShowExportSuccessDialog] = useState(false);
+
   const presetColors = [
     "#ffffff",
     "#000000",
@@ -53,6 +57,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     "#ffa500",
     "#800080",
   ];
+
+  const handleExportAll = async () => {
+    try {
+      await onExportAll();
+      // 导出成功后显示对话框
+      setShowExportSuccessDialog(true);
+    } catch (error) {
+      console.error("导出失败:", error);
+    }
+  };
+
+  const handleFinish = () => {
+    setShowExportSuccessDialog(false);
+  };
+
+  const handleClearAndContinue = () => {
+    setShowExportSuccessDialog(false);
+    onClearAllImages();
+  };
 
   return (
     <div className="settings-panel">
@@ -342,7 +365,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </button>
 
         <button
-          onClick={onExportAll}
+          onClick={handleExportAll}
           disabled={imageCount === 0}
           className="action-btn export-btn"
           title="导出所有带水印的图片"
@@ -363,6 +386,46 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           导出所有图片
         </button>
       </div>
+
+      {/* 导出成功对话框 */}
+      {showExportSuccessDialog && (
+        <div className="export-success-dialog-overlay">
+          <div className="export-success-dialog">
+            <div className="dialog-header">
+              <h3 className="dialog-title">导出完成</h3>
+            </div>
+            <div className="dialog-content">
+              <div className="success-icon">
+                <svg
+                  className="w-16 h-16 text-green-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <p className="dialog-message">所有图片已成功导出！您可以选择：</p>
+            </div>
+            <div className="dialog-actions">
+              <button onClick={handleFinish} className="dialog-btn finish-btn">
+                完成
+              </button>
+              <button
+                onClick={handleClearAndContinue}
+                className="dialog-btn continue-btn"
+              >
+                清除图片，继续下一批
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
