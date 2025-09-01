@@ -78,6 +78,11 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             displayHeight = Math.min(img.height, containerHeight);
             displayWidth = displayHeight * imgAspectRatio;
           }
+
+          // 确保尺寸是整数，避免像素对齐问题
+          displayWidth = Math.round(displayWidth);
+          displayHeight = Math.round(displayHeight);
+
           setScale(initialScale);
           setImageSize({ width: displayWidth, height: displayHeight });
           setShowMoveable(true);
@@ -97,6 +102,13 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             setIsAnimating(false);
           }, 500);
         };
+
+        // 添加错误处理
+        img.onerror = () => {
+          console.error("Failed to load image:", image.url);
+          setIsAnimating(false);
+        };
+
         img.src = image.url;
 
         // 更新前一个图片ID
@@ -126,6 +138,36 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       originalImageSize.width,
       originalImageSize.height,
       scale,
+    ]);
+
+    // 确保容器尺寸和图片尺寸完全同步
+    useEffect(() => {
+      if (originalImageSize.width && originalImageSize.height && scale) {
+        // 强制重新计算容器尺寸
+        const containerWidth = Math.round(originalImageSize.width * scale);
+        const containerHeight = Math.round(originalImageSize.height * scale);
+
+        // 检查当前尺寸是否匹配，如果不匹配则强制更新
+        if (
+          imageSize.width !== containerWidth ||
+          imageSize.height !== containerHeight
+        ) {
+          setImageSize({ width: containerWidth, height: containerHeight });
+
+          console.log("Container size corrected:", {
+            oldSize: imageSize,
+            newSize: { width: containerWidth, height: containerHeight },
+            scale,
+            originalSize: originalImageSize,
+          });
+        }
+      }
+    }, [
+      originalImageSize.width,
+      originalImageSize.height,
+      scale,
+      imageSize.width,
+      imageSize.height,
     ]);
 
     // 添加键盘事件监听器
@@ -452,6 +494,9 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             <span className="text-sm text-gray-500 ml-2">
               (缩放: {Math.round(scale * 100)}%)
             </span>
+            <span className="text-sm text-gray-500 ml-2">
+              (容器: {imageSize.width} × {imageSize.height} px)
+            </span>
           </div>
           <div className="zoom-controls">
             <button onClick={handleZoomOut} className="zoom-btn" title="缩小">
@@ -525,11 +570,12 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             onClick={handleContainerClick}
             style={{
               position: "relative",
-              width: `${originalImageSize.width * scale}px`,
-              height: `${originalImageSize.height * scale}px`,
+              width: `${imageSize.width}px`,
+              height: `${imageSize.height}px`,
               maxWidth: "100%",
               maxHeight: "100%",
               border: "1px solid #ccc",
+              overflow: "hidden",
             }}
           >
             <img
@@ -539,10 +585,13 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "contain",
+                objectFit: "fill",
                 objectPosition: "center",
                 display: "block",
                 userSelect: "none",
+                position: "absolute",
+                top: 0,
+                left: 0,
               }}
             />
             <div
