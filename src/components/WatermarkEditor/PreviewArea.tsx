@@ -216,6 +216,41 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
               watermarkPosition.y + scaledStep / originalImageSize.height,
             );
             break;
+          case "q":
+            e.preventDefault();
+            // 增加水印宽度，同时调整X位置保持中心对齐
+            const newWidth = Math.min(
+              1 - watermarkPosition.x,
+              watermarkPosition.width + scaledStep / originalImageSize.width,
+            );
+            const widthDiff = newWidth - watermarkPosition.width;
+            const newXCenter = Math.max(0, watermarkPosition.x - widthDiff / 2);
+
+            onWatermarkUpdate({
+              ...watermarkPosition,
+              width: newWidth,
+              x: newXCenter,
+            });
+            return; // 直接返回，避免执行下面的通用更新
+          case "e":
+            e.preventDefault();
+            // 增加水印高度，同时调整Y位置保持中心对齐
+            const newHeight = Math.min(
+              1 - watermarkPosition.y,
+              watermarkPosition.height + scaledStep / originalImageSize.height,
+            );
+            const heightDiff = newHeight - watermarkPosition.height;
+            const newYCenter = Math.max(
+              0,
+              watermarkPosition.y - heightDiff / 2,
+            );
+
+            onWatermarkUpdate({
+              ...watermarkPosition,
+              height: newHeight,
+              y: newYCenter,
+            });
+            return; // 直接返回，避免执行下面的通用更新
           default:
             return;
         }
@@ -411,6 +446,38 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             watermarkPosition.y + scaledStep / originalImageSize.height,
           );
           break;
+        case "q":
+          e.preventDefault();
+          // 增加水印宽度，同时调整X位置保持中心对齐
+          const newWidth = Math.min(
+            1 - watermarkPosition.x,
+            watermarkPosition.width + scaledStep / originalImageSize.width,
+          );
+          const widthDiff = newWidth - watermarkPosition.width;
+          const newXCenter = Math.max(0, watermarkPosition.x - widthDiff / 2);
+
+          onWatermarkUpdate({
+            ...watermarkPosition,
+            width: newWidth,
+            x: newXCenter,
+          });
+          return;
+        case "e":
+          e.preventDefault();
+          // 增加水印高度，同时调整Y位置保持中心对齐
+          const newHeight = Math.min(
+            1 - watermarkPosition.height,
+            watermarkPosition.height + scaledStep / originalImageSize.height,
+          );
+          const heightDiff = newHeight - watermarkPosition.height;
+          const newYCenter = Math.max(0, watermarkPosition.y - heightDiff / 2);
+
+          onWatermarkUpdate({
+            ...watermarkPosition,
+            height: newHeight,
+            y: newYCenter,
+          });
+          return;
         default:
           return;
       }
@@ -551,9 +618,9 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             {isWatermarkFocused && (
               <span
                 className="text-xs text-blue-600 ml-2"
-                title="使用WSAD键精确移动水印"
+                title="使用WSAD键移动水印，QE键调整水印尺寸"
               >
-                ⌨️ WSAD键移动
+                ⌨️ WSAD移动 QE调整尺寸
               </span>
             )}
           </div>
