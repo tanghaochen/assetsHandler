@@ -56,6 +56,13 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       height: number;
     } | null>(null);
 
+    // 添加水印拖拽状态
+    const [isWatermarkDragging, setIsWatermarkDragging] = useState(false);
+    // 添加拖拽结束后的延迟状态，避免拖拽结束后立即出现框选
+    const [isDragEndDelayed, setIsDragEndDelayed] = useState(false);
+    // 记录最近一次水印交互（拖拽/缩放/旋转）结束的时间
+    const lastWatermarkInteractionEndRef = useRef<number>(0);
+
     // 框选容器引用
     const selectoContainerRef = useRef<HTMLDivElement>(null);
 
@@ -290,12 +297,17 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     const handleDrag = (e: any) => {
       console.log("Drag event:", e);
+      // 设置拖拽状态为true，禁用框选
+      setIsWatermarkDragging(true);
       // 让 Moveable 正常处理拖拽
       e.target.style.transform = e.transform;
     };
 
     const handleDragEnd = (e: any) => {
       console.log("Drag end event:", e);
+      // 拖拽结束，设置延迟状态
+      setIsDragEndDelayed(true);
+      lastWatermarkInteractionEndRef.current = Date.now();
 
       // 拖拽结束后计算百分比位置
       const rect = e.target.getBoundingClientRect();
@@ -315,16 +327,27 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
         x: Math.max(0, Math.min(1 - watermarkPosition.width, x)),
         y: Math.max(0, Math.min(1 - watermarkPosition.height, y)),
       });
+
+      // 延迟300ms后重新启用框选，避免拖拽结束后立即出现框选
+      setTimeout(() => {
+        setIsWatermarkDragging(false);
+        setIsDragEndDelayed(false);
+      }, 300);
     };
 
     const handleResize = (e: any) => {
       console.log("Resize event:", e);
+      // 设置拖拽状态为true，禁用框选
+      setIsWatermarkDragging(true);
       // 让 Moveable 正常处理缩放
       e.target.style.transform = e.transform;
     };
 
     const handleResizeEnd = (e: any) => {
       console.log("Resize end event:", e);
+      // 缩放结束，设置延迟状态
+      setIsDragEndDelayed(true);
+      lastWatermarkInteractionEndRef.current = Date.now();
 
       // 获取缩放后的实际位置和尺寸
       const rect = e.target.getBoundingClientRect();
@@ -357,16 +380,27 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
         width: clampedWidth,
         height: clampedHeight,
       });
+
+      // 延迟300ms后重新启用框选，避免缩放结束后立即出现框选
+      setTimeout(() => {
+        setIsWatermarkDragging(false);
+        setIsDragEndDelayed(false);
+      }, 300);
     };
 
     const handleRotate = (e: any) => {
       console.log("Rotate event:", e);
+      // 设置拖拽状态为true，禁用框选
+      setIsWatermarkDragging(true);
       // 让 Moveable 正常处理旋转
       e.target.style.transform = e.transform;
     };
 
     const handleRotateEnd = (e: any) => {
       console.log("Rotate end event:", e);
+      // 旋转结束，设置延迟状态
+      setIsDragEndDelayed(true);
+      lastWatermarkInteractionEndRef.current = Date.now();
 
       // 旋转结束后提取旋转角度
       const rotation = parseFloat(
@@ -377,6 +411,12 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
         ...watermarkPosition,
         rotation,
       });
+
+      // 延迟300ms后重新启用框选，避免旋转结束后立即出现框选
+      setTimeout(() => {
+        setIsWatermarkDragging(false);
+        setIsDragEndDelayed(false);
+      }, 300);
     };
 
     const handleMouseEnter = () => {
@@ -417,7 +457,8 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     // 框选事件处理
     const handleSelect = (e: any) => {
-      if (!isSelectionMode) return;
+      // 如果水印正在被拖拽或处于延迟状态，禁用框选
+      if (!isSelectionMode || isWatermarkDragging || isDragEndDelayed) return;
 
       console.log("框选事件:", e);
 
@@ -469,13 +510,15 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     // 框选开始事件
     const handleSelectStart = (e: any) => {
-      if (!isSelectionMode) return;
+      // 如果水印正在被拖拽或处于延迟状态，禁用框选
+      if (!isSelectionMode || isWatermarkDragging || isDragEndDelayed) return;
       console.log("开始框选...", e);
     };
 
     // 框选结束事件
     const handleSelectEnd = (e: any) => {
-      if (!isSelectionMode) return;
+      // 如果水印正在被拖拽或处于延迟状态，禁用框选
+      if (!isSelectionMode || isWatermarkDragging || isDragEndDelayed) return;
       console.log("框选结束", e);
     };
 
@@ -494,7 +537,32 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     // 鼠标按下事件
     const handleMouseDown = (e: React.MouseEvent) => {
-      if (!isSelectionMode) return;
+      // 仅在左键按下才考虑框选
+      const isLeftButton = e.button === 0;
+      if (!isLeftButton) return;
+
+      // 冷却时间窗口（ms）
+      const cooldownMs = 300;
+      const isInCooldown =
+        Date.now() - lastWatermarkInteractionEndRef.current < cooldownMs;
+
+      // 如果水印正在被拖拽或处于延迟状态或冷却未过，禁用框选
+      if (
+        !isSelectionMode ||
+        isWatermarkDragging ||
+        isDragEndDelayed ||
+        isInCooldown
+      )
+        return;
+
+      // 点击命中水印元素时不进入框选
+      if (
+        watermarkRef.current &&
+        (e.target === watermarkRef.current ||
+          watermarkRef.current.contains(e.target as Node))
+      ) {
+        return;
+      }
 
       const rect = selectoContainerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -509,7 +577,20 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     // 鼠标移动事件
     const handleMouseMove = (e: React.MouseEvent) => {
-      if (!isSelectionMode || !isDragging) return;
+      // 冷却时间窗口（ms）
+      const cooldownMs = 300;
+      const isInCooldown =
+        Date.now() - lastWatermarkInteractionEndRef.current < cooldownMs;
+
+      // 如果水印正在被拖拽或处于延迟状态或冷却未过，禁用框选
+      if (
+        !isSelectionMode ||
+        !isDragging ||
+        isWatermarkDragging ||
+        isDragEndDelayed ||
+        isInCooldown
+      )
+        return;
 
       const rect = selectoContainerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -522,7 +603,20 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     // 鼠标松开事件
     const handleMouseUp = () => {
-      if (!isSelectionMode || !isDragging) return;
+      // 冷却时间窗口（ms）
+      const cooldownMs = 300;
+      const isInCooldown =
+        Date.now() - lastWatermarkInteractionEndRef.current < cooldownMs;
+
+      // 如果水印正在被拖拽或处于延迟状态或冷却未过，禁用框选
+      if (
+        !isSelectionMode ||
+        !isDragging ||
+        isWatermarkDragging ||
+        isDragEndDelayed ||
+        isInCooldown
+      )
+        return;
 
       setIsDragging(false);
 
@@ -563,7 +657,6 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
       });
 
       // 不清除框选模式，保持开启状态
-      // setIsSelectionMode(false);
       setSelectionBox(null);
 
       // 显示成功提示
@@ -794,16 +887,37 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
                 isSelectionMode ? "active" : ""
               }`}
               title={isSelectionMode ? "退出框选模式" : "进入框选模式"}
+              disabled={isWatermarkDragging || isDragEndDelayed}
             >
               {isSelectionMode ? "🚫 退出框选" : "📐 框选模式"}
             </button>
 
-            {isWatermarkFocused && (
+            {isWatermarkFocused &&
+              !isWatermarkDragging &&
+              !isDragEndDelayed && (
+                <span
+                  className="text-xs text-blue-600 ml-2"
+                  title="使用WSAD键移动水印，QE键调整水印尺寸，或使用框选模式"
+                >
+                  ⌨️ WSAD移动 QE调整尺寸 | 📐 框选模式
+                </span>
+              )}
+
+            {isWatermarkDragging && (
               <span
-                className="text-xs text-blue-600 ml-2"
-                title="使用WSAD键移动水印，QE键调整水印尺寸，或使用框选模式"
+                className="text-xs text-orange-600 ml-2"
+                title="正在拖拽水印，框选功能已禁用"
               >
-                ⌨️ WSAD移动 QE调整尺寸 | 📐 框选模式
+                🚫 拖拽中，框选已禁用
+              </span>
+            )}
+
+            {isDragEndDelayed && !isWatermarkDragging && (
+              <span
+                className="text-xs text-orange-600 ml-2"
+                title="拖拽刚结束，框选功能暂时禁用"
+              >
+                ⏳ 拖拽刚结束，框选暂时禁用
               </span>
             )}
           </div>
@@ -898,22 +1012,25 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             )}
 
             {/* 框选区域显示 */}
-            {isSelectionMode && isDragging && (
-              <div
-                className="selection-box"
-                style={{
-                  position: "absolute",
-                  left: Math.min(dragStart.x, dragEnd.x),
-                  top: Math.min(dragStart.y, dragEnd.y),
-                  width: Math.abs(dragEnd.x - dragStart.x),
-                  height: Math.abs(dragEnd.y - dragStart.y),
-                  border: "2px dashed #3b82f6",
-                  backgroundColor: "rgba(59, 130, 246, 0.1)",
-                  pointerEvents: "none",
-                  zIndex: 1001,
-                }}
-              />
-            )}
+            {isSelectionMode &&
+              isDragging &&
+              !isWatermarkDragging &&
+              !isDragEndDelayed && (
+                <div
+                  className="selection-box"
+                  style={{
+                    position: "absolute",
+                    left: Math.min(dragStart.x, dragEnd.x),
+                    top: Math.min(dragStart.y, dragEnd.y),
+                    width: Math.abs(dragEnd.x - dragStart.x),
+                    height: Math.abs(dragEnd.y - dragStart.y),
+                    border: "2px dashed #3b82f6",
+                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    pointerEvents: "none",
+                    zIndex: 1001,
+                  }}
+                />
+              )}
           </div>
         </div>
 
