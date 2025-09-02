@@ -16,6 +16,7 @@ interface SettingsPanelProps {
   exportSettings: { outputPath: string };
   onExportSettingsChange: (settings: { outputPath?: string }) => void;
   onApplyToAll: () => void;
+  onApplyToFollowing?: () => void;
   onExportAll: () => void;
   onClearSettings: () => void;
   onClearAllImages: () => void;
@@ -38,6 +39,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   exportSettings,
   onExportSettingsChange,
   onApplyToAll,
+  onApplyToFollowing,
   onExportAll,
   onClearSettings,
   onClearAllImages,
@@ -362,6 +364,32 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </svg>
           应用到全部 ({imageCount})
+        </button>
+
+        <button
+          onClick={() => {
+            if (onApplyToFollowing) {
+              onApplyToFollowing();
+            }
+          }}
+          disabled={imageCount <= 1}
+          className="action-btn apply-btn"
+          title="把当前选中图片之后的所有图片的水印设置为与当前选中一致"
+        >
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+          应用于后续已添加图片
         </button>
 
         <button

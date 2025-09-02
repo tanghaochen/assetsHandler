@@ -636,6 +636,29 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
     );
   }, [watermarkPosition, images.length, showSnackbar]);
 
+  // 将当前选中图片之后的图片，水印设置为与当前选中一致
+  const applyToFollowingImages = useCallback(() => {
+    if (selectedImageIndex < 0 || selectedImageIndex >= images.length) return;
+    const base = images[selectedImageIndex]?.watermarkPosition;
+    if (!base) return;
+
+    setImages((prev) =>
+      prev.map((img, idx) =>
+        idx > selectedImageIndex
+          ? { ...img, watermarkPosition: { ...base } }
+          : img,
+      ),
+    );
+
+    showSnackbar(
+      `已将当前选中图片之后的 ${Math.max(
+        images.length - selectedImageIndex - 1,
+        0,
+      )} 张图片设置为相同水印`,
+      "success",
+    );
+  }, [images, selectedImageIndex, showSnackbar]);
+
   // 导出所有图片：打包为 zip，并保留原文件名与后缀格式
   const exportAllImages = useCallback(async () => {
     if (images.length === 0) return;
@@ -1023,6 +1046,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({ onBack }) => {
             exportSettings={exportSettings}
             onExportSettingsChange={handleExportSettingsChange}
             onApplyToAll={applyToAllImages}
+            onApplyToFollowing={applyToFollowingImages}
             onExportAll={exportAllImages}
             onClearSettings={handleClearSettings}
             onClearAllImages={handleClearAll}
