@@ -1,5 +1,6 @@
-import React, { forwardRef, useEffect, useState } from "react";
+import React, { forwardRef, useEffect, useState, useRef } from "react";
 import Moveable from "react-moveable";
+import Selecto from "react-selecto";
 import { ImageItem, WatermarkPosition } from "./types";
 
 interface PreviewAreaProps {
@@ -45,6 +46,18 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
     const [animationKey, setAnimationKey] = useState(0);
     const [previousImageId, setPreviousImageId] = useState<string | null>(null);
     const [isWatermarkFocused, setIsWatermarkFocused] = useState(true);
+
+    // 添加框选相关状态
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectionBox, setSelectionBox] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null>(null);
+
+    // 框选容器引用
+    const selectoContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
       if (image) {
@@ -236,7 +249,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             e.preventDefault();
             // 增加水印高度，同时调整Y位置保持中心对齐
             const newHeight = Math.min(
-              1 - watermarkPosition.y,
+              1 - watermarkPosition.height,
               watermarkPosition.height + scaledStep / originalImageSize.height,
             );
             const heightDiff = newHeight - watermarkPosition.height;
@@ -400,6 +413,166 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
     const handleResetZoom = () => {
       setScale(1); // 重置到100%
+    };
+
+    // 框选事件处理
+    const handleSelect = (e: any) => {
+      if (!isSelectionMode) return;
+      
+      console.log("框选事件:", e);
+      
+      // 获取框选的矩形区域
+      const rect = e.rect;
+      if (!rect) return;
+      
+      // 计算相对于容器的位置
+      const containerRect =
+        selectoContainerRef.current?.getBoundingClientRect();
+      if (!containerRect) return;
+      
+      // 转换为百分比位置和尺寸
+      const scaledWidth = originalImageSize.width * scale;
+      const scaledHeight = originalImageSize.height * scale;
+      
+      const x = rect.left / scaledWidth;
+      const y = rect.top / scaledHeight;
+      const width = rect.width / scaledWidth;
+      const height = rect.height / scaledHeight;
+      
+      // 确保位置和尺寸在有效范围内
+      const clampedX = Math.max(0, Math.min(1 - width, x));
+      const clampedY = Math.max(0, Math.min(1 - height, y));
+      const clampedWidth = Math.max(0.01, Math.min(1, width));
+      const clampedHeight = Math.max(0.01, Math.min(1, height));
+      
+      // 更新水印位置和尺寸
+      onWatermarkUpdate({
+        ...watermarkPosition,
+        x: clampedX,
+        y: clampedY,
+        width: clampedWidth,
+        height: clampedHeight,
+      });
+      
+      // 退出框选模式
+      setIsSelectionMode(false);
+      setSelectionBox(null);
+      
+      // 显示成功提示
+      console.log("框选完成，水印已更新到:", {
+        x: clampedX,
+        y: clampedY,
+        width: clampedWidth,
+        height: clampedHeight,
+      });
+    };
+
+    // 框选开始事件
+    const handleSelectStart = (e: any) => {
+      if (!isSelectionMode) return;
+      console.log("开始框选...", e);
+    };
+
+    // 框选结束事件
+    const handleSelectEnd = (e: any) => {
+      if (!isSelectionMode) return;
+      console.log("框选结束", e);
+    };
+
+    // 切换框选模式
+    const toggleSelectionMode = () => {
+      setIsSelectionMode(!isSelectionMode);
+      if (isSelectionMode) {
+        setSelectionBox(null);
+      }
+    };
+
+    // 手动框选相关状态和函数
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 });
+
+    // 鼠标按下事件
+    const handleMouseDown = (e: React.MouseEvent) => {
+      if (!isSelectionMode) return;
+      
+      const rect = selectoContainerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      setIsDragging(true);
+      setDragStart({ x, y });
+      setDragEnd({ x, y });
+    };
+
+    // 鼠标移动事件
+    const handleMouseMove = (e: React.MouseEvent) => {
+      if (!isSelectionMode || !isDragging) return;
+      
+      const rect = selectoContainerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      setDragEnd({ x, y });
+    };
+
+    // 鼠标松开事件
+    const handleMouseUp = () => {
+      if (!isSelectionMode || !isDragging) return;
+      
+      setIsDragging(false);
+      
+      // 计算框选区域
+      const startX = Math.min(dragStart.x, dragEnd.x);
+      const startY = Math.min(dragStart.y, dragEnd.y);
+      const endX = Math.max(dragStart.x, dragEnd.x);
+      const endY = Math.max(dragStart.y, dragEnd.y);
+      
+      const width = endX - startX;
+      const height = endY - startY;
+      
+      // 如果框选区域太小，忽略
+      if (width < 10 || height < 10) return;
+      
+      // 转换为百分比位置和尺寸
+      const scaledWidth = originalImageSize.width * scale;
+      const scaledHeight = originalImageSize.height * scale;
+      
+      const x = startX / scaledWidth;
+      const y = startY / scaledHeight;
+      const widthPercent = width / scaledWidth;
+      const heightPercent = height / scaledHeight;
+      
+      // 确保位置和尺寸在有效范围内
+      const clampedX = Math.max(0, Math.min(1 - widthPercent, x));
+      const clampedY = Math.max(0, Math.min(1 - heightPercent, y));
+      const clampedWidth = Math.max(0.01, Math.min(1, widthPercent));
+      const clampedHeight = Math.max(0.01, Math.min(1, heightPercent));
+      
+      // 更新水印位置和尺寸
+      onWatermarkUpdate({
+        ...watermarkPosition,
+        x: clampedX,
+        y: clampedY,
+        width: clampedWidth,
+        height: clampedHeight,
+      });
+      
+      // 退出框选模式
+      setIsSelectionMode(false);
+      setSelectionBox(null);
+      
+      // 显示成功提示
+      console.log("框选完成，水印已更新到:", {
+        x: clampedX,
+        y: clampedY,
+        width: clampedWidth,
+        height: clampedHeight,
+      });
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -615,12 +788,24 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
                 />
               </svg>
             </button>
+
+            {/* 添加框选模式切换按钮 */}
+            <button
+              onClick={toggleSelectionMode}
+              className={`selection-mode-btn ${
+                isSelectionMode ? "active" : ""
+              }`}
+              title={isSelectionMode ? "退出框选模式" : "进入框选模式"}
+            >
+              {isSelectionMode ? "🚫 退出框选" : "📐 框选模式"}
+            </button>
+
             {isWatermarkFocused && (
               <span
                 className="text-xs text-blue-600 ml-2"
-                title="使用WSAD键移动水印，QE键调整水印尺寸"
+                title="使用WSAD键移动水印，QE键调整水印尺寸，或使用框选模式"
               >
-                ⌨️ WSAD移动 QE调整尺寸
+                ⌨️ WSAD移动 QE调整尺寸 | 📐 框选模式
               </span>
             )}
           </div>
@@ -628,6 +813,7 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
 
         <div className="preview-container">
           <div
+            ref={selectoContainerRef}
             className={`image-container ${
               isAnimating ? `slide-${slideDirection}` : ""
             }`}
@@ -635,6 +821,9 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             onClick={handleContainerClick}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
             style={{
               position: "relative",
               width: `${imageSize.width}px`,
@@ -709,8 +898,42 @@ const PreviewArea = forwardRef<HTMLDivElement, PreviewAreaProps>(
                 onRotateEnd={handleRotateEnd}
               />
             )}
+
+            {/* 框选提示覆盖层 */}
+            {isSelectionMode && (
+              <div className="selection-overlay">
+                <div className="selection-instruction">
+                  <div className="instruction-icon">📐</div>
+                  <div className="instruction-text">
+                    <p>框选模式已激活</p>
+                    <p>在图片上拖拽鼠标选择区域</p>
+                    <p>选择完成后水印将自动定位到该区域</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 框选区域显示 */}
+            {isSelectionMode && isDragging && (
+              <div
+                className="selection-box"
+                style={{
+                  position: "absolute",
+                  left: Math.min(dragStart.x, dragEnd.x),
+                  top: Math.min(dragStart.y, dragEnd.y),
+                  width: Math.abs(dragEnd.x - dragStart.x),
+                  height: Math.abs(dragEnd.y - dragStart.y),
+                  border: "2px dashed #3b82f6",
+                  backgroundColor: "rgba(59, 130, 246, 0.1)",
+                  pointerEvents: "none",
+                  zIndex: 1001,
+                }}
+              />
+            )}
           </div>
         </div>
+
+        {/* 移除React Selecto组件，使用手动框选 */}
       </div>
     );
   },

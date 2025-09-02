@@ -30,7 +30,8 @@
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "moveable": "^0.53.0",
-    "react-moveable": "^0.56.0"
+    "react-moveable": "^0.56.0",
+    "react-selecto": "^1.26.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",

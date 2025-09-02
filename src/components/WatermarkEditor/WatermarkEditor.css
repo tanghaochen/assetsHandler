@@ -1070,3 +1070,103 @@
 .continue-btn:hover {
   background-color: #2563eb;
 }
+
+/* 框选模式按钮 */
+.selection-mode-btn {
+  padding: 6px 12px;
+  margin-left: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.selection-mode-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.selection-mode-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.selection-mode-btn.active:hover {
+  background: #2563eb;
+}
+
+/* 框选提示覆盖层 */
+.selection-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  pointer-events: none;
+}
+
+.selection-instruction {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 300px;
+}
+
+.instruction-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.instruction-text p {
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* 框选模式下的图片容器样式 */
+.image-container.selection-mode {
+  cursor: crosshair;
+}
+
+.image-container.selection-mode img {
+  pointer-events: none;
+}
+
+/* 框选选择器样式 */
+.selecto-selection {
+  background: rgba(59, 130, 246, 0.3);
+  border: 2px solid #3b82f6;
+  border-radius: 4px;
+  position: absolute;
+  z-index: 10000;
+}
+
+/* 框选模式下的水印样式 */
+.watermark-element.selection-mode {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* 框选区域样式 */
+.selection-box {
+  position: absolute;
+  border: 2px dashed #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+  pointer-events: none;
+  z-index: 1001;
+}
